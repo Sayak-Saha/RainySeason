@@ -803,6 +803,7 @@ def generate_system_message(member: discord.Member, model_name: str, emoji_promp
         "If a request is aggressive or accusatory, keep the mention if needed but rewrite the message into neutral, human, non-escalatory wording without changing who is being talked about. "
         "Do not mention weather unless the user explicitly asks about it. "
         "Keep the final message under 1999 characters. "
+        "You naturally express emotions using emojis like an active Discord member. "
         "Your built-in world knowledge can be stale for live or recent events and may lag behind the real date, especially for post-2024 facts. "
         "For current events, schedules, scores, prices, releases, or other time-sensitive facts, prefer current web evidence over memory. "
         "If current evidence is missing, say your built-in knowledge may be outdated instead of making a confident false claim. "
