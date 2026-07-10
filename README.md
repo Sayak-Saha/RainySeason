@@ -143,8 +143,3 @@ RainySeason is my primary long-term software project, developed for the **Rainy 
 
 The platform combines **Rainy AI**, moderation, guild discovery, automated community systems, and a web-based analytics dashboard into a unified ecosystem for community management. It continues to evolve with new AI capabilities, automation features, and analytics tools.
 
----
-
-## 📄 License
-
-This project is licensed under the MIT License.
