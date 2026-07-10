@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-6NJBX4DMFQ"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-6NJBX4DMFQ');
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy - Rainy AI</title>
+    <link rel="canonical" href="https://rainyseason.vercel.app/">
+    <meta property="og:url" content="https://rainyseason.vercel.app/">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #4a89dc;
+            --secondary: #967adc;
+            --accent: #3bafda;
+            --dark-bg: #0f172a;
+            --card-bg: rgba(20, 27, 49, 0.9);
+            --text-light: #e2e8f0;
+            --text-muted: #94a3b8;
+            --border-color: rgba(148, 163, 184, 0.18);
+            --primary-rgb: 74, 137, 220;
+            --secondary-rgb: 150, 122, 220;
+            --surface-shadow: 0 18px 50px rgba(0, 0, 0, 0.34);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            background:
+                radial-gradient(circle at top center, rgba(var(--secondary-rgb), 0.22), transparent 35%),
+                linear-gradient(180deg, #11182d 0%, #101729 52%, #0e1526 100%);
+            color: var(--text-light);
+            overflow-x: hidden;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 40px 20px;
+        }
+
+        /* Raindrop Animation from index.html */
+        .raindrops {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            overflow: hidden;
+        }
+
+        .raindrop {
+            position: absolute;
+            width: 1px;
+            height: 15px;
+            background: linear-gradient(to bottom, transparent, var(--accent));
+            animation: rain linear infinite;
+            opacity: 0;
+        }
+
+        @keyframes rain {
+            0% {
+                transform: translateY(-100%);
+                opacity: 0;
+            }
+            10% {
+                opacity: 0.6;
+            }
+            100% {
+                transform: translateY(100vh);
+                opacity: 0;
+            }
+        }
+        
+        /* Main container */
+        .container {
+            max-width: 900px;
+            width: 100%;
+            position: relative;
+            z-index: 10;
+        }
+
+        /* Policy Card */
+        .policy-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(18px);
+            border-radius: 28px;
+            padding: 40px;
+            width: 100%;
+            box-shadow: var(--surface-shadow);
+            border: 1px solid var(--border-color);
+        }
+        
+        .policy-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .policy-header h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(45deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            line-height: 1.2;
+            margin-bottom: 10px;
+        }
+        
+        .policy-header .effective-date {
+            font-size: 1rem;
+            color: var(--text-muted);
+        }
+
+        .policy-content h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-light);
+            margin-top: 30px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .policy-content h2 i {
+            color: var(--accent);
+        }
+
+        .policy-content h3 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+        
+        .policy-content p, .policy-content li {
+            font-size: 1rem;
+            line-height: 1.7;
+            color: var(--text-muted);
+        }
+        
+        .policy-content ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .policy-content li {
+            padding-left: 25px;
+            position: relative;
+            margin-bottom: 10px;
+        }
+
+        .policy-content li::before {
+            content: '\f0da'; /* Font Awesome chevron right */
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+            position: absolute;
+            left: 0;
+            top: 5px;
+            color: var(--accent);
+        }
+
+        .policy-content strong {
+            color: var(--text-light);
+            font-weight: 600;
+        }
+
+        .policy-content a {
+            color: var(--primary);
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+
+        .policy-content a:hover {
+            color: var(--accent);
+            text-decoration: underline;
+        }
+
+        .home-link {
+            display: block;
+            text-align: center;
+            margin-top: 40px;
+            font-size: 1rem;
+            color: var(--text-muted);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            body {
+                padding: 20px 15px;
+            }
+            .policy-card {
+                padding: 30px;
+            }
+            .policy-header h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="raindrops" id="raindrops"></div>
+
+    <div class="container">
+        <div class="policy-card">
+            <div class="policy-header">
+                <h1> Privacy Policy for Rainy AI</h1>
+                <p class="effective-date">Effective Date: October 22, 2025</p>
+            </div>
+            
+            <div class="policy-content">
+                <p>This privacy policy outlines the data that the Discord bot "Rainy AI" (the "Bot") collects. It is essential to understand that the Bot's data collection practices differ between its home development server, <strong>"Rainy Season"</strong>, and any other public server it may join in the future. Your use of the Bot signifies your acceptance of the policy relevant to the server you are in.</p>
+
+                <h2><i class="fas fa-database"></i>1. What data do we collect?</h2>
+                <p>Our data collection is based on the server where the Bot is operating.</p>
+                
+                <h3>For All Public Servers (Any server EXCEPT "Rainy Season")</h3>
+                <p>When the Bot is added to a public server, it is designed to be privacy-focused and collects only the minimum data required for its commands to function:</p>
+                <ul>
+                    <li><strong>Required Discord Data:</strong> User IDs, Server IDs, and Channel IDs are used to process commands and manage settings.</li>
+                    <li><strong>User-Provided Content:</strong> Content you provide directly in a command is processed to generate a response. The Bot does not log or store general chat messages.</li>
+                </ul>
+
+                <h3>Specific to the "Rainy Season" Development Server</h3>
+                <p>Within our own private server, "Rainy Season," the Bot collects additional data for the purpose of developing, testing, and providing advanced, deeply integrated features for our members. This expanded collection is limited to this server only.</p>
+                <ul>
+                    <li><strong>Chat Logs:</strong> All messages may be logged and analyzed to power features like moderation, user activity tracking, and to train AI functionalities.</li>
+                    <li><strong>Full Member Data:</strong> Information provided by the Discord API about members, such as roles, join dates, and activity status.</li>
+                    <li><strong>Emoji & Server Data:</strong> Data on custom emoji usage and general server information for analytics and to provide it to the AI.</li>
+                </ul>
+
+                <h2><i class="fas fa-question-circle"></i>2. Why do we need the data?</h2>
+                <h3>For All Public Servers</h3>
+                <p>Data is used solely to make the bot work as expected: to respond to commands, save server-specific settings, and manage permissions.</p>
+                <h3>For the "Rainy Season" Server</h3>
+                <p>The extensive data collected in our home server allows us to:</p>
+                <ul>
+                    <li>Build and test new, context-aware features.</li>
+                    <li>Provide detailed server analytics for our own server dashboard.</li>
+                    <li>Enhance moderation and community management tools.</li>
+                    <li>Ensure the Bot is stable and functioning correctly.</li>
+                </ul>
+
+                <h2><i class="fas fa-cogs"></i>3. How do we use the data?</h2>
+                 <ul>
+                    <li>In <strong>public servers</strong>, data is processed in real-time to execute your commands.</li>
+                    <li>In the <strong>"Rainy Season" server</strong>, the collected data is stored securely and used for internal analysis and feature development.</li>
+                    <li>Your data is <strong>never sold or used for targeted advertising</strong>.</li>
+                </ul>
+
+                <h2><i class="fas fa-share-alt"></i>4. Who do we share data with?</h2>
+                <p>We do not share, sell, or rent your data to any third-party companies or individuals. All data collected remains within our secure infrastructure. Access is strictly limited to the Bot's developers for the purposes of maintenance and development.</p>
+
+                <h2><i class="fas fa-envelope"></i>5. How can users contact us with concerns?</h2>
+                <p>If you have any questions or concerns about this privacy policy or your data, please contact us:</p>
+                <ul>
+                    <li><strong>Discord:</strong> @sayaksaha</li>
+                    <li><strong>Support Server:</strong> <a href="https://discord.gg/CvU77YA65K" target="_blank"> https://discord.gg/CvU77YA65K</a></li>
+                </ul>
+
+                <h2><i class="fas fa-trash-alt"></i>6. How can users have their data removed?</h2>
+                <h3>For Public Servers</h3>
+                <p>Kicking the Bot from your Discord server will automatically trigger the deletion of all data associated with that server, such as custom settings.</p>
+                <h3>For the "Rainy Season" Server</h3>
+                <p>As participation in this server is for development and testing, data is retained for operational history. However, if you are a member and wish to have specific personal data removed, please contact us directly using one of the methods in section 5 to discuss your request.</p>
+            </div>
+            <a href="/" class="home-link">← Back to Home</a>
+        </div>
+    </div>
+
+    <script>
+        // Raindrop animation script from index.html
+        function createRaindrops() {
+            const container = document.getElementById('raindrops');
+            if (!container) return;
+            const dropsCount = 80;
+            
+            for (let i = 0; i < dropsCount; i++) {
+                const drop = document.createElement('div');
+                drop.classList.add('raindrop');
+                
+                const left = Math.random() * 100;
+                const duration = 0.5 + Math.random() * 1.5;
+                const delay = Math.random() * 2;
+                
+                drop.style.left = `${left}%`;
+                drop.style.animationDuration = `${duration}s`;
+                drop.style.animationDelay = `${delay}s`;
+                
+                container.appendChild(drop);
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', createRaindrops);
+    </script>
+</body>
+</html>

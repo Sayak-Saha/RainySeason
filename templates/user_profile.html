@@ -1,0 +1,1373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-6NJBX4DMFQ"></script>
+    <meta name="google-adsense-account" content="ca-pub-7740246956515737">
+    <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-6NJBX4DMFQ');
+    </script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="description" content="{{ user.display_name }}'s profile on {{ server.name }} — view their messages, activity, roles, and more.">
+    <meta name="robots" content="noindex, nofollow">
+    <!-- Open Graph -->
+    <meta property="og:type" content="profile">
+    <meta property="og:title" content="{{ user.display_name }}'s Profile — {{ server.name }}">
+    <meta property="og:description" content="Check out {{ user.display_name }}'s activity, top channels, roles, and stats on {{ server.name }}.">
+    <meta property="og:image" content="{{ user.avatar }}">
+    <meta property="og:site_name" content="{{ server.name }}">
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="{{ user.display_name }}'s Profile — {{ server.name }}">
+    <meta name="twitter:description" content="Check out {{ user.display_name }}'s stats and activity on {{ server.name }}.">
+    <meta name="twitter:image" content="{{ user.avatar }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" href="{{ server.icon }}" type="image/png">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+    <script src="https://kit.fontawesome.com/e66300e8d1.js" crossorigin="anonymous"></script>
+    <title>{{ user.display_name }}'s Profile</title>
+    <style>
+        :root {
+            --primary: #4a89dc;
+            --secondary: #967adc;
+            --accent: #3bafda;
+            --dark-bg: #0f172a;
+            --card-bg: rgba(20, 27, 49, 0.9);
+            --text-light: #e2e8f0;
+            --text-muted: #94a3b8;
+            --border-color: rgba(148, 163, 184, 0.18);
+            --rain-keeper: #8b5cf6;
+
+            --primary-rgb: 74, 137, 220;
+            --secondary-rgb: 150, 122, 220;
+            --accent-rgb: 59, 175, 218;
+            --surface-shadow: 0 18px 50px rgba(0, 0, 0, 0.34);
+
+            /* Discord-like status colors (kept from previous iteration as they are standard) */
+            --online-color: #43B581; /* Discord Green */
+            --idle-color: #FAA61A; /* Discord Orange */
+            --dnd-color: #F04747; /* Discord Red */
+            --offline-color: #747F8D; /* Discord Grey/Offline */
+            --booster-color: #F47FFF; /* Discord Purple for booster */
+            --owner-color: #FFD700; /* Gold */
+            --admin-color: #FF7043; /* Orange-Red for Admin (more distinct) */
+            --mod-color: #5DADE2; /* A soft blue for Mod */
+            --rain-keeper-color: #2ECC71; /* Green for Rain Keeper */
+
+            /* Dynamically set primary color from user's accent_color if available */
+            {% if user.accent_color %}
+            --user-accent-color: #{{ user.accent_color }};
+            --avatar-border-color: #{{ user.accent_color }};
+            --user-accent-rgb: {{ user.accent_color | hex_to_rgb }};
+            {% else %}
+            --user-accent-color: var(--primary);
+            --avatar-border-color: var(--primary);
+            --user-accent-rgb: 74, 137, 220; /* Default RGB for --primary: #4a89dc */
+            {% endif %}
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* Matched index.html font */
+        }
+
+        body {
+            min-height: 100vh;
+            background:
+                radial-gradient(circle at top center, rgba(var(--secondary-rgb), 0.22), transparent 35%),
+                linear-gradient(180deg, #11182d 0%, #101729 52%, #0e1526 100%);
+            color: var(--text-light);
+            overflow-x: hidden;
+            position: relative;
+            padding: 20px;
+        }
+
+        /* Raindrop Animation - Copied from index.html */
+        .raindrops {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            overflow: hidden;
+        }
+
+        .raindrop {
+            position: absolute;
+            width: 1px;
+            height: 15px;
+            background: linear-gradient(to bottom, transparent, var(--accent));
+            animation: rain linear infinite;
+            opacity: 0;
+        }
+
+        @keyframes rain {
+            0% {
+                transform: translateY(-100%);
+                opacity: 0;
+            }
+            10% {
+                opacity: 0.6;
+            }
+            100% {
+                transform: translateY(100vh);
+                opacity: 0;
+            }
+        }
+
+        .container {
+            max-width: 1200px; /* Adjusted for profile content */
+            width: 100%;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            position: relative;
+            z-index: 10;
+        }
+
+        .header {
+            background-image:
+                linear-gradient(rgba(0,0,0,0.6), var(--dark-bg)), /* Adjusted gradient to match dark-bg */
+                url('{{ user.banner | default("/static/banner.png") }}');
+            background-size: cover;
+            background-position: center;
+            border-radius: 28px;
+            padding: 40px;
+            box-shadow: var(--surface-shadow);
+            border: 1px solid var(--border-color);
+            display: flex;
+            align-items: flex-start;
+            gap: 25px;
+            position: relative;
+            overflow: visible; /* Changed to visible to allow dropdown to extend */
+            transition: all 0.3s ease; /* Combined transform and shadow transition */
+        }
+        .header:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.4), 0 0 0 1px rgba(255, 255, 255, 0.1);
+        }
+
+        {% if user.accent_color %}
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(to top, var(--dark-bg) 0%, transparent 50%),
+                        linear-gradient(to bottom, transparent 0%, rgba(var(--user-accent-rgb), 0.1) 100%); /* Used user-accent-rgb */
+            border-radius: 20px; /* Matched header border-radius */
+            pointer-events: none;
+            z-index: 0;
+        }
+        {% endif %}
+
+        .user-avatar-wrapper {
+            position: relative;
+            width: 130px;
+            height: 130px;
+            flex-shrink: 0;
+            z-index: 1;
+        }
+
+        .user-avatar {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 5px solid var(--avatar-border-color); /* Kept dynamic border color */
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.4);
+            transition: transform 0.3s ease;
+        }
+        .user-avatar-wrapper:hover .user-avatar {
+            transform: scale(1.05);
+        }
+
+        .status-indicator {
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 5px solid var(--dark-bg); /* Matched dark-bg */
+            background-color: var(--offline-color);
+        }
+        .status-indicator.online { background-color: var(--online-color); }
+        .status-indicator.idle { background-color: var(--idle-color); }
+        .status-indicator.dnd { background-color: var(--dnd-color); }
+        .status-indicator.offline { background-color: var(--offline-color); }
+
+
+        .user-info {
+            display: flex;
+            flex-direction: column;
+            /* Changed to column to stack elements */
+            gap: 10px;
+            flex-grow: 1;
+            z-index: 1;
+        }
+
+        .user-names-and-search { /* New container for name and search */
+            display: flex;
+            align-items: center;
+            justify-content: space-between; /* Pushes search to the right */
+            flex-wrap: wrap; /* Allows wrapping on smaller screens */
+            gap: 12px;
+            width: 100%; /* Ensure it takes full width of user-info */
+        }
+
+        .user-names {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .user-name {
+            font-size: 38px;
+            font-weight: 800;
+            color: var(--text-light);
+            line-height: 1;
+            background: linear-gradient(45deg, var(--user-accent-color), var(--secondary)); /* Dynamic gradient based on user accent */
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .global-name {
+            font-size: 22px;
+            color: var(--text-muted);
+            font-weight: 500;
+            opacity: 0.8;
+        }
+
+        .user-id, .pronouns {
+            font-size: 15px;
+            color: var(--text-muted);
+            opacity: 0.9;
+        }
+
+        .member-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 12px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 13.5px;
+            color: white;
+            white-space: nowrap;
+            text-transform: uppercase;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .badge:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        .badge i { margin-right: 4px; font-size: 1.1em; }
+
+        .badge.booster { background-color: var(--booster-color); }
+        .badge.owner { background-color: var(--owner-color); }
+        .badge.admin { background-color: var(--admin-color); }
+        .badge.mod { background-color: var(--mod-color); }
+        .badge.rain-keeper { background-color: var(--rain-keeper-color); }
+        .badge.level-role { background-color: var(--secondary); opacity: 0.9; }
+        .badge.timed-out { background-color: var(--dnd-color); }
+
+
+        .kpi-container {
+            display: flex; /* Changed to flex for consistency with index.html stats */
+            justify-content: center; /* Centered for visual appeal */
+            gap: 20px; /* Adjusted gap */
+            margin-top: 25px;
+            padding-top: 25px;
+            border-top: 1px solid var(--border-color);
+            flex-wrap: wrap; /* Allow wrapping on smaller screens */
+        }
+
+        .kpi {
+            text-align: center;
+            padding: 20px; /* Increased padding */
+            background: rgba(30, 41, 59, 0.6); /* Matched index.html stat-card background */
+            border-radius: 15px; /* Matched index.html stat-card border-radius */
+            border: 1px solid rgba(148, 163, 184, 0.1); /* Matched index.html stat-card border */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            min-width: 160px; /* Ensure some minimum width */
+            position: relative;
+            overflow: hidden;
+        }
+        .kpi::before { /* Added top border like stat-card in index.html */
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(45deg, var(--user-accent-color), var(--secondary)); /* Dynamic gradient */
+        }
+        .kpi:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(0,0,0,0.2);
+        }
+
+        .kpi-value {
+            font-size: 2.2rem; /* Larger font size */
+            font-weight: 700;
+            color: var(--text-light); /* Matched index.html text-light */
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 5px;
+            white-space: nowrap;
+        }
+        .kpi-value i {
+            font-size: 1.1em;
+            color: var(--accent); /* Used accent color */
+        }
+
+        .kpi-label {
+            font-size: 0.9rem; /* Matched index.html stat-label */
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1.5px; /* Matched index.html stat-label */
+            font-weight: 600; /* Matched index.html stat-label */
+        }
+
+        .content-grid {
+            display: grid;
+            gap: 20px;
+            grid-template-columns: 2fr 1fr;
+            grid-template-areas: "activity top-channels"
+                                 "status-activities general-details"
+                                 "permissions-flags permissions-flags";
+        }
+
+        .card {
+            background: var(--card-bg); /* Matched index.html card-bg */
+            backdrop-filter: blur(10px); /* Matched index.html backdrop-filter */
+            border-radius: 20px; /* Larger border-radius for consistency */
+            padding: 30px; /* Increased padding */
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.05); /* Matched index.html shadow */
+            border: 1px solid var(--border-color); /* Matched index.html border */
+            transition: all 0.3s ease; /* Combined transform and shadow transition */
+        }
+        .card:hover {
+            transform: translateY(-5px); /* Increased hover effect */
+            box-shadow: 0 15px 40px rgba(0,0,0,0.4), 0 0 0 1px rgba(255, 255, 255, 0.1);
+        }
+
+        #user-activity-card { grid-area: activity; }
+        #top-channels-card { grid-area: top-channels; }
+        #status-activities-card { grid-area: status-activities; }
+        #general-details-card { grid-area: general-details; }
+        #permissions-flags-card { grid-area: permissions-flags; }
+
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .card-header h2 {
+            font-size: 24px; /* Larger font size for card titles */
+            font-weight: 700;
+            color: var(--text-light);
+            background: linear-gradient(45deg, var(--primary), var(--secondary)); /* Gradient for titles */
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .channel-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .channel-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
+            background-color: rgba(var(--accent-rgb), 0.08); /* Used accent-rgb */
+            border-radius: 10px; /* Slightly larger radius */
+            border: 1px solid rgba(var(--accent-rgb), 0.15);
+            transition: background-color 0.2s ease, transform 0.2s ease;
+        }
+        .channel-item:hover {
+            background-color: rgba(var(--accent-rgb), 0.15);
+            transform: translateX(5px);
+        }
+        .channel-item span:first-child {
+            font-weight: 500;
+            color: var(--primary);
+        }
+        .channel-item span:last-child {
+            font-weight: 600;
+            color: var(--text-light);
+        }
+
+        .chart-container {
+            height: 300px;
+            width: 100%;
+        }
+
+        /* --- New Styling for Details, Status, Permissions --- */
+
+        /* General Details & Status & Activities (grouped for layout) */
+        .details-grid, .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); /* Adjusted minmax for better fit */
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .detail-box, .status-box {
+            background-color: rgba(30, 41, 59, 0.6); /* Matched stat-card background */
+            border: 1px solid rgba(148, 163, 184, 0.1); /* Matched stat-card border */
+            border-radius: 15px; /* Matched stat-card border-radius */
+            padding: 20px; /* Increased padding */
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            cursor: default;
+            position: relative;
+            overflow: hidden;
+        }
+        .detail-box::before, .status-box::before { /* Added top border like stat-card */
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(45deg, var(--accent), var(--secondary)); /* Using accent and secondary */
+        }
+        .detail-box:hover, .status-box:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        .detail-box .label, .status-box .label {
+            font-size: 0.9rem; /* Matched index.html stat-label */
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1.5px; /* Matched index.html stat-label */
+            font-weight: 600; /* Matched index.html stat-label */
+        }
+
+        .detail-box .value, .status-box .value {
+            font-size: 1.5rem; /* Larger font for values */
+            font-weight: 700;
+            color: var(--text-light); /* Matched index.html text-light */
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .detail-box .value i, .status-box .value i {
+            color: var(--primary);
+            font-size: 1.1em;
+        }
+
+        .status-box .value.online { color: var(--online-color); }
+        .status-box .value.idle { color: var(--idle-color); }
+        .status-box .value.dnd { color: var(--dnd-color); }
+        .status-box .value.offline { color: var(--offline-color); }
+
+        /* Current Activities */
+        .activities-section {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px dashed var(--border-color);
+        }
+        .activities-section h3 {
+            font-size: 20px; /* Slightly larger heading */
+            color: var(--text-light);
+            margin-bottom: 15px;
+        }
+        .activity-item {
+            background-color: rgba(30, 41, 59, 0.4); /* Slightly lighter background */
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .activity-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+        }
+
+        .activity-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .activity-header i {
+            font-size: 1.5em;
+            color: var(--primary);
+        }
+        .activity-name {
+            font-weight: 700;
+            font-size: 1.15em;
+            color: var(--primary);
+        }
+        .activity-type {
+            font-size: 0.85em;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            background-color: rgba(var(--primary-rgb), 0.1); /* Using primary-rgb for consistency */
+            padding: 3px 7px;
+            border-radius: 5px;
+        }
+        .activity-details, .activity-state {
+            font-size: 0.95em;
+            color: var(--text-light);
+            margin-left: 30px;
+        }
+        .activity-timestamps {
+            font-size: 0.8em;
+            color: var(--text-muted);
+            margin-top: 8px;
+            margin-left: 30px;
+        }
+
+        /* Permissions & Flags */
+        .permissions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); /* Adjusted minmax for more space */
+            gap: 15px;
+        }
+        .permission-item {
+            background-color: rgba(30, 41, 59, 0.6); /* Matched stat-card background */
+            border: 1px solid rgba(148, 163, 184, 0.1); /* Matched stat-card border */
+            border-radius: 15px; /* Matched stat-card border-radius */
+            padding: 20px; /* Increased padding */
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            cursor: default;
+            position: relative;
+            overflow: hidden;
+        }
+        .permission-item::before { /* Added top border like stat-card */
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(45deg, var(--accent), var(--secondary)); /* Using accent and secondary */
+        }
+        .permission-item:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        .permission-item .label {
+            font-size: 0.9rem; /* Matched index.html stat-label */
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1.5px; /* Matched index.html stat-label */
+            font-weight: 600; /* Matched index.html stat-label */
+        }
+        .permission-item .value {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-light);
+            word-break: break-all;
+        }
+
+        .flag-list, .permission-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        .flag-list-item, .permission-list-item {
+            display: inline-flex;
+            align-items: center;
+            font-size: 13px;
+            color: var(--text-light);
+            background-color: rgba(var(--primary-rgb), 0.15); /* Using primary-rgb */
+            padding: 6px 10px;
+            border-radius: 6px;
+            border: 1px solid rgba(var(--primary-rgb), 0.25);
+            transition: transform 0.2s ease, background-color 0.2s ease;
+            white-space: nowrap;
+        }
+        .flag-list-item:hover, .permission-list-item:hover {
+            transform: translateY(-1px);
+            background-color: rgba(var(--primary-rgb), 0.25);
+        }
+        .flag-list-item i, .permission-list-item i {
+            margin-right: 6px;
+            color: var(--accent);
+            font-size: 1.1em;
+        }
+
+        /* Role list styling - making them look like tags */
+        .roles-section {
+            margin-top: 30px;
+            border-top: 1px dashed var(--border-color);
+            padding-top: 20px;
+        }
+        .roles-section h3 {
+            font-size: 20px; /* Slightly larger heading */
+            color: var(--text-light);
+            margin-bottom: 15px;
+        }
+        .role-list {
+            list-style: none;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .role-item {
+            background-color: rgba(var(--primary-rgb), 0.1); /* Using primary-rgb */
+            color: var(--text-light);
+            padding: 7px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            border: 1px solid rgba(var(--primary-rgb), 0.2);
+            white-space: nowrap;
+            transition: background-color 0.2s ease, transform 0.2s ease;
+        }
+        .role-item:hover {
+            background-color: rgba(var(--primary-rgb), 0.2);
+            transform: translateY(-1px);
+        }
+        /* Search Bar Styles */
+        .search-container {
+            position: relative;
+            flex-grow: 0; /* No longer growing, fixed width */
+            width: 250px; /* Set a specific width for better control */
+            /* Removed margin-left: auto; as it's now handled by justify-content */
+            z-index: 100; /* Increased z-index to ensure it's on top */
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 10px 15px;
+            border-radius: 25px;
+            border: 1px solid var(--border-color);
+            background-color: rgba(19, 26, 48, 0.9);
+            color: var(--text-light);
+            font-size: 1rem;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+        .search-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.2);
+        }
+
+        .search-results-dropdown {
+            position: absolute;
+            top: 100%; /* Position below the search bar */
+            left: 0;
+            right: 0;
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 101; /* Higher z-index than search-container to be on top */
+            margin-top: 5px; /* Reduced margin top for tighter fit */
+            padding: 10px 0;
+            display: none; /* Hidden by default */
+        }
+        .search-results-dropdown.active {
+            display: block;
+        }
+        .search-result-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 15px;
+            gap: 10px;
+            color: var(--text-light);
+            text-decoration: none;
+            transition: background-color 0.2s ease;
+        }
+        .search-result-item:hover {
+            background-color: rgba(var(--primary-rgb), 0.1);
+        }
+        .search-result-item img {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--primary);
+        }
+        .search-result-item .name {
+            font-weight: 600;
+        }
+        .search-result-item .id {
+            font-size: 0.8em;
+            color: var(--text-muted);
+        }
+
+        /* Styles for user-item elements within search results, mirroring dashboard.html */
+        .mini-profile-link {
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .user-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 15px;
+            gap: 10px;
+            border-bottom: 1px solid var(--border-color);
+            transition: background-color 0.2s ease;
+        }
+
+        .user-item:last-child {
+            border-bottom: none;
+        }
+
+        .user-item:hover {
+            background-color: rgba(var(--primary-rgb), 0.05);
+        }
+
+        .user-item .user-avatar {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--primary);
+        }
+
+        .user-item .user-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .user-item .user-name {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: var(--text-light);
+        }
+
+        .user-item .user-meta {
+            font-size: 0.85em;
+            color: var(--text-muted);
+        }
+
+        .no-results, .loading-spinner {
+            padding: 15px;
+            text-align: center;
+            color: var(--text-muted);
+        }
+        .loading-spinner {
+            display: none; /* Hidden by default */
+        }
+        .loading-spinner.active {
+            display: block;
+        }
+        
+        /* Scrollbar Styles */
+        ::-webkit-scrollbar {
+            width: 12px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--dark-bg);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(45deg, var(--primary), var(--accent));
+            border-radius: 10px;
+            border: 2px solid var(--dark-bg);
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(45deg, var(--accent), var(--primary));
+        }
+        /* Responsive adjustments */
+        @media (max-width: 992px) {
+            .content-grid {
+                grid-template-columns: 1fr;
+                grid-template-areas:
+                    "activity"
+                    "top-channels"
+                    "status-activities"
+                    "general-details"
+                    "permissions-flags";
+            }
+            .search-container {
+                max-width: 100%; /* Full width on smaller screens */
+                width: 100%; /* Ensure it spans full width */
+                margin-left: 0; /* Reset margin */
+                margin-top: 15px; /* Add some space below user info if stacked */
+                order: 10; /* Push it to the bottom of the flex column in user-info */
+            }
+            .header {
+                flex-direction: column;
+                align-items: center;
+            }
+            .user-info {
+                align-items: center; /* Center content when stacked */
+                text-align: center;
+            }
+            .user-names-and-search {
+                flex-direction: column; /* Stack name and search bar */
+                align-items: center;
+                gap: 15px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            body { padding: 10px; }
+            .header {
+                flex-direction: column;
+                text-align: center;
+                align-items: center;
+                padding: 20px;
+            }
+            .user-avatar-wrapper { margin-bottom: 10px; }
+            .user-names {
+                flex-direction: column;
+                align-items: center;
+                gap: 5px;
+            }
+            .user-name { font-size: 32px; }
+            .global-name { font-size: 18px; }
+            .kpi-container {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+            .kpi { padding: 15px; min-width: unset; } /* Adjusted padding and min-width */
+            .kpi-value { font-size: 1.8rem; } /* Adjusted font size */
+
+            .card { padding: 15px; border-radius: 15px; } /* Adjusted padding and border-radius */
+            .card-header h2 { font-size: 20px; } /* Adjusted font size */
+            .detail-box, .status-box, .permission-item {
+                padding: 15px; /* Adjusted padding */
+                border-radius: 10px; /* Adjusted border-radius */
+            }
+            .detail-box .value, .status-box .value {
+                font-size: 1.2rem; /* Adjusted font size */
+            }
+            .flag-list-item, .permission-list-item, .role-item {
+                font-size: 12px;
+                padding: 5px 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="raindrops" id="raindrops"></div>
+
+    <div class="container">
+        <div class="header">
+            <div class="user-avatar-wrapper">
+                <img src="{{ user.avatar }}" class="user-avatar" alt="{{ user.display_name }}">
+                <div class="status-indicator {{ user.status }}"></div>
+            </div>
+            <div class="user-info">
+                <div class="user-names-and-search">
+                    <div class="user-names">
+                        <h1 class="user-name">{{ user.display_name }}</h1>
+                        {% if user.global_name %}<span class="global-name">@{{ user.global_name }}</span>{% endif %}
+                    </div>
+                    <div class="search-container">
+                        <input type="text" id="member-search-input" class="search-input" placeholder="Search members...">
+                        <div id="search-results" class="search-results-dropdown">
+                        </div>
+                    </div>
+                </div>
+                <span class="user-id">ID: {{ user.id }}</span>
+                {% if user.gender_pronouns %}<span class="pronouns">Pronouns: {{ user.gender_pronouns }}</span>{% endif %}
+
+                <div class="member-badges">
+                    {% if user.is_owner %}<span class="badge owner"><i class="fas fa-crown"></i>Owner</span>{% endif %}
+                    {% if user.is_admin %}<span class="badge admin"><i class="fas fa-shield-alt"></i>Admin</span>{% endif %}
+                    {% if user.is_mod %}<span class="badge mod"><i class="fas fa-gavel"></i>Moderator</span>{% endif %}
+                    {% if user.is_booster %}<span class="badge booster"><i class="fas fa-star"></i>Server Booster</span>{% endif %}
+                    {% if user.is_rain_keeper %}<span class="badge rain-keeper"><i class="fas fa-cloud-sun-rain"></i>Rain Keeper</span>{% endif %}
+                    {% if user.level_role %}<span class="badge level-role"><i class="fas fa-medal"></i>{{ user.level_role }}</span>{% endif %}
+                    {% if user.timed_out_until %}
+                    <span class="badge timed-out"><i class="fas fa-hand-paper"></i>Timed Out Until: {{ user.timed_out_until_formatted }}</span>
+                    {% endif %}
+                </div>
+
+                <div class="kpi-container">
+                    <div class="kpi">
+                        <div class="kpi-value"><i class="fas fa-comment-dots"></i>{{ "{:,}".format(user.total_messages) }}</div>
+                        <div class="kpi-label">Total Messages</div>
+                    </div>
+                    <div class="kpi">
+                        <div class="kpi-value"><i class="fas fa-clock"></i>{{ user.last_message_formatted }}</div>
+                        <div class="kpi-label">Last Message</div>
+                    </div>
+                    <div class="kpi">
+                        <div class="kpi-value"><i class="fas fa-hashtag"></i>{{ user.channels_active_in }}</div>
+                        <div class="kpi-label">Active Channels</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="content-grid">
+            <div class="card" id="user-activity-card">
+                <div class="card-header">
+                    <h2>Weekly Message Activity</h2>
+                </div>
+                <div class="chart-container">
+                    <canvas id="userActivityChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card" id="top-channels-card">
+                <div class="card-header">
+                    <h2>Top Channels</h2>
+                </div>
+                <div class="channel-list">
+                    {% for channel, count in user.top_channels.items() %}
+                    <div class="channel-item">
+                        <span>#{{ channel }}</span>
+                        <span>{{ "{:,}".format(count) }} messages</span>
+                    </div>
+                    {% endfor %}
+                    {% if not user.top_channels %}
+                    <p class="text-muted">No channel data available.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card" id="status-activities-card">
+                <div class="card-header">
+                    <h2>Status & Activities</h2>
+                </div>
+                <div class="status-grid">
+                    <div class="status-box">
+                        <span class="label">Current Status</span>
+                        <span class="value {{ user.status }}">
+                            {% if user.desktop_status != 'offline' %}
+                                <i class="fas fa-desktop"></i>
+                            {% elif user.mobile_status != 'offline' %}
+                                <i class="fas fa-mobile-alt"></i>
+                            {% elif user.web_status != 'offline' %}
+                                <i class="fas fa-globe"></i>
+                            {% else %}
+                                <i class="fas fa-power-off"></i>
+                            {% endif %}
+                            {{ user.status | capitalize }}
+                        </span>
+                    </div>
+                </div>
+                {% if user.activities %}
+                <div class="activities-section">
+                    <h3>Current Activities:</h3>
+                    <div class="activity-list">
+                        {% for activity in user.activities %}
+                        <div class="activity-item">
+                            <div class="activity-header">
+                                {% if activity.type == "playing" %}<i class="fas fa-gamepad"></i>
+                                {% elif activity.type == "listening" %}<i class="fas fa-headphones"></i>
+                                {% elif activity.type == "watching" %}<i class="fas fa-tv"></i>
+                                {% elif activity.type == "streaming" %}<i class="fas fa-video"></i>
+                                {% elif activity.type == "custom" %}<i class="fas fa-pen-nib"></i>
+                                {% else %}<i class="fas fa-circle"></i>
+                                {% endif %}
+                                <span class="activity-name">{{ activity.name }}</span>
+                                <span class="activity-type">{{ activity.type | replace("_", " ") }}</span>
+                            </div>
+                            {% if activity.details %}<div class="activity-details">{{ activity.details }}</div>{% endif %}
+                            {% if activity.state and activity.type != "custom" %}<div class="activity-state">{{ activity.state }}</div>{% endif %}
+                            {% if activity.start_timestamp %}<div class="activity-timestamps">Started: {{ activity.start_timestamp | format_activity_timestamp }}</div>{% endif %}
+                            {% if activity.end_timestamp %}<div class="activity-timestamps">Ends: {{ activity.end_timestamp | format_activity_timestamp }}</div>{% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="card" id="general-details-card">
+                <div class="card-header">
+                    <h2>General Details</h2>
+                </div>
+                <div class="details-grid">
+                    <div class="detail-box">
+                        <span class="label">Account Created</span>
+                        <span class="value"><i class="fas fa-user-plus"></i>{{ user.account_created_at_formatted }}</span>
+                    </div>
+                    <div class="detail-box">
+                        <span class="label">Joined Server</span>
+                        <span class="value"><i class="fas fa-door-open"></i>{{ user.joined_at_formatted }}</span>
+                    </div>
+                    {% if user.is_booster %}
+                    <div class="detail-box">
+                        <span class="label">Boosting Since</span>
+                        <span class="value"><i class="fas fa-star"></i>{{ user.boosted_since_formatted }}</span>
+                    </div>
+                    {% endif %}
+                    {% if user.top_role_name %}
+                    <div class="detail-box">
+                        <span class="label">Top Role</span>
+                        <span class="value"><i class="fas fa-medal"></i>{{ user.top_role_name }}</span>
+                    </div>
+                    {% endif %}
+                    {% if user.accent_color %}
+                    <div class="detail-box">
+                        <span class="label">Accent Color</span>
+                        <span class="value" style="color: #{{ user.accent_color }};"><i class="fas fa-palette"></i>#{{ user.accent_color }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+                {% if user.roles %}
+                <div class="roles-section">
+                    <h3>Roles:</h3>
+                    <ul class="role-list">
+                        {% for role in user.roles %}<li class="role-item">{{ role }}</li>{% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="card" id="permissions-flags-card">
+                <div class="card-header">
+                    <h2>Permissions & Flags</h2>
+                </div>
+                <div class="permissions-grid">
+                    <div class="permission-item">
+                        <span class="label">Public Flags</span>
+                        <div class="flag-list" id="publicFlagsList">
+                            </div>
+                    </div>
+                    <div class="permission-item">
+                        <span class="label">Guild Permissions</span>
+                        <div class="permission-list" id="guildPermissionsList">
+                            </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Improved raindrop animation - Copied from index.html
+        function createRaindrops() {
+            const container = document.getElementById('raindrops');
+            const dropsCount = 80;
+            const screenHeight = window.innerHeight; // Add this line
+
+            for (let i = 0; i < dropsCount; i++) {
+                const drop = document.createElement('div');
+                drop.classList.add('raindrop');
+
+                // Random properties
+                const left = Math.random() * 100;
+                const duration = 0.5 + Math.random() * 1.5;
+                const delay = Math.random() * 2;
+                const length = 10 + Math.random() * 20;
+                const opacity = 0.3 + Math.random() * 0.4;
+
+                drop.style.left = `${left}%`;
+                drop.style.height = `${length}px`;
+                drop.style.animationDuration = `${duration}s`;
+                drop.style.animationDelay = `${delay}s`;
+                drop.style.opacity = opacity;
+
+                // Add these two lines to set the initial random position
+                const startPos = -screenHeight * Math.random(); 
+                drop.style.transform = `translateY(${startPos}px)`;
+
+                container.appendChild(drop);
+            }
+        }
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', function() {
+            createRaindrops();
+
+            // Chart.js for User Activity
+            const activityChartCtx = document.getElementById('userActivityChart').getContext('2d');
+            const rootStyles = getComputedStyle(document.documentElement);
+            const primaryColor = rootStyles.getPropertyValue('--primary').trim();
+            const userAccentRgb = rootStyles.getPropertyValue('--user-accent-rgb').trim(); // Use user-accent-rgb
+
+            new Chart(activityChartCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                    datasets: [{
+                        label: 'Messages',
+                        data: {{ user.activity | tojson | safe }}.map(day => day.messages),
+                        backgroundColor: primaryColor,
+                        borderColor: primaryColor,
+                        borderWidth: 1,
+                        borderRadius: 6,
+                        hoverBackgroundColor: `rgba(${userAccentRgb}, 0.8)` // Use user-accent-rgb for hover
+                    }]
+                },
+                options: {
+                    maintainAspectRatio: false,
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: rootStyles.getPropertyValue('--card-bg').trim(),
+                            titleColor: rootStyles.getPropertyValue('--primary').trim(),
+                            bodyColor: rootStyles.getPropertyValue('--text-light').trim(),
+                            borderColor: rootStyles.getPropertyValue('--border-color').trim(),
+                            borderWidth: 1,
+                            cornerRadius: 5,
+                            displayColors: false,
+                            padding: 10
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                color: 'rgba(165, 165, 186, 0.1)',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                color: rootStyles.getPropertyValue('--text-muted').trim()
+                            },
+                            barPercentage: 0.8,
+                            categoryPercentage: 0.8
+                        },
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(165, 165, 186, 0.1)',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                color: rootStyles.getPropertyValue('--text-muted').trim()
+                            }
+                        }
+                    }
+                }
+            });
+
+            // --- Search Bar Functionality ---
+            const searchInput = document.getElementById('member-search-input');
+            const searchResultsDiv = document.getElementById('search-results');
+            let searchTimeout = null;
+
+            searchInput.addEventListener('input', function() {
+                clearTimeout(searchTimeout);
+                const query = this.value.trim();
+
+                if (query.length === 0) {
+                    searchResultsDiv.style.display = 'none';
+                    searchResultsDiv.innerHTML = '';
+                    return;
+                }
+
+                searchTimeout = setTimeout(() => {
+                    fetch(`/api/members/search?q=${encodeURIComponent(query)}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            searchResultsDiv.innerHTML = '';
+                            if (data.length > 0) {
+                                data.forEach(member => {
+                                    const userItemHtml = `
+                                        <a href="/users/${member.id}" class="mini-profile-link">
+                                            <div class="user-item">
+                                                <img src="${member.avatar}" class="user-avatar" alt="${member.display_name || member.name}">
+                                                <div class="user-info">
+                                                    <div class="user-name">${member.display_name || member.name}</div>
+                                                    <div class="user-meta">${member.global_name ? `@${member.global_name}` : ''}</div>
+                                                </div>
+                                            </div>
+                                        </a>
+                                    `;
+                                    searchResultsDiv.insertAdjacentHTML('beforeend', userItemHtml);
+                                });
+                                searchResultsDiv.style.display = 'block';
+                            } else {
+                                searchResultsDiv.innerHTML = '<p class="no-results">No members found.</p>';
+                                searchResultsDiv.style.display = 'block';
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error fetching search results:', error);
+                            searchResultsDiv.innerHTML = '<p class="no-results">Error searching members.</p>';
+                            searchResultsDiv.style.display = 'block';
+                        });
+                }, 300); // Debounce time
+            });
+
+            // Hide search results when clicking outside
+            document.addEventListener('click', function(event) {
+                if (!searchInput.contains(event.target) && !searchResultsDiv.contains(event.target)) {
+                    searchResultsDiv.style.display = 'none';
+                }
+            });
+
+            // Keep search results visible when interacting with them
+            searchResultsDiv.addEventListener('click', function(event) {
+                event.stopPropagation(); // Prevent document click from hiding results
+            });
+
+            // Public Flags Decoding (existing code)
+            const publicFlags = {{ user.public_flags }};
+            const publicFlagsList = document.getElementById('publicFlagsList');
+
+            const PUBLIC_FLAGS_MAP = {
+                1: { name: 'Discord Employee', icon: '<i class="fas fa-user-tie"></i>' }, // Staff
+                2: { name: 'Partnered Server Owner', icon: '<i class="fas fa-handshake"></i>' }, // Partner
+                4: { name: 'HypeSquad Events Member', icon: '<i class="fas fa-calendar-alt"></i>' }, // Hypesquad
+                8: { name: 'Bug Hunter Level 1', icon: '<i class="fas fa-bug"></i>' }, // BugHunterLevel1
+                16: { name: 'MFA SMS (Undocumented)', icon: '<i class="fas fa-sms"></i>' }, // MFASMSunstable
+                32: { name: 'Premium Promo Dismissed (Undocumented)', icon: '<i class="fas fa-bell-slash"></i>' }, // PremiumPromoDismissedunstable
+                64: { name: 'House Bravery Member', icon: '<i class="fas fa-shield-alt"></i>' }, // HypeSquadOnlineHouse1
+                128: { name: 'House Brilliance Member', icon: '<i class="fas fa-brain"></i>' }, // HypeSquadOnlineHouse2
+                256: { name: 'House Balance Member', icon: '<i class="fas fa-balance-scale"></i>' }, // HypeSquadOnlineHouse3
+                512: { name: 'Early Nitro Supporter', icon: '<i class="fas fa-heart"></i>' }, // PremiumEarlySupporter
+                1024: { name: 'Team User', icon: '<i class="fas fa-users"></i>' }, // TeamPseudoUser
+                8192: { name: 'Has Unread Urgent Messages (Undocumented)', icon: '<i class="fas fa-exclamation-triangle"></i>' }, // HasUnreadUrgentMessagesunstable
+                16384: { name: 'Bug Hunter Level 2', icon: '<i class="fas fa-bug"></i>' }, // BugHunterLevel2
+                65536: { name: 'Verified Bot', icon: '<i class="fas fa-robot"></i>' }, // VerifiedBot
+                131072: { name: 'Early Verified Bot Developer', icon: '<i class="fas fa-code"></i>' }, // VerifiedDeveloper
+                262144: { name: 'Moderator Programs Alumni', icon: '<i class="fas fa-badge-check"></i>' }, // CertifiedModerator
+                524288: { name: 'Bot uses only interactions', icon: '<i class="fas fa-comments"></i>' }, // BotHTTPInteractions
+                1048576: { name: 'Identified as Spammer (Undocumented)', icon: '<i class="fas fa-user-slash"></i>' }, // Spammerunstable
+                2097152: { name: 'Disable Premium (Undocumented)', icon: '<i class="fas fa-ban"></i>' }, // DisablePremiumunstable
+                4194304: { name: 'Active Developer', icon: '<i class="fas fa-terminal"></i>' }, // ActiveDeveloper
+                17592186044416: { name: 'Account Quarantined (Undocumented)', icon: '<i class="fas fa-user-lock"></i>' }, // Quarantinedunstable
+                1125899906842624: { name: 'Collaborator (Undocumented)', icon: '<i class="fas fa-hands-helping"></i>' }, // Collaboratorunstable
+                2251799813685248: { name: 'Restricted Collaborator (Undocumented)', icon: '<i class="fas fa-user-secret"></i>' }, // RestrictedCollaboratorunstable
+            };
+
+
+            let hasPublicFlags = false;
+            if (publicFlags !== undefined && publicFlags !== null) {
+                for (const flagValueStr in PUBLIC_FLAGS_MAP) {
+                    const flagValue = parseInt(flagValueStr);
+                    if ((publicFlags & flagValue) === flagValue) {
+                        hasPublicFlags = true;
+                        const flagInfo = PUBLIC_FLAGS_MAP[flagValueStr];
+                        const listItem = document.createElement('div');
+                        listItem.className = 'flag-list-item';
+                        listItem.innerHTML = `${flagInfo.icon}<span>${flagInfo.name}</span>`;
+                        publicFlagsList.appendChild(listItem);
+                    }
+                }
+            }
+            if (!hasPublicFlags) {
+                 publicFlagsList.innerHTML = '<span class="text-muted">No public flags.</span>';
+            }
+
+
+            // Guild Permissions Decoding (existing code)
+            const guildPermissions = {{ user.guild_permissions_value | default(0) }};
+            const guildPermissionsList = document.getElementById('guildPermissionsList');
+
+            const GUILD_PERMISSIONS_MAP = {
+                1: { name: 'Create Instant Invite', icon: '<i class="fas fa-user-plus"></i>' },
+                2: { name: 'Kick Members', icon: '<i class="fas fa-user-minus"></i>' },
+                4: { name: 'Ban Members', icon: '<i class="fas fa-ban"></i>' },
+                8: { name: 'Administrator', icon: '<i class="fas fa-crown"></i>' },
+                16: { name: 'Manage Channels', icon: '<i class="fas fa-cogs"></i>' },
+                32: { name: 'Manage Guild', icon: '<i class="fas fa-server"></i>' },
+                64: { name: 'Add Reactions', icon: '<i class="fas fa-smile"></i>' },
+                128: { name: 'View Audit Log', icon: '<i class="fas fa-clipboard-list"></i>' },
+                256: { name: 'Priority Speaker', icon: '<i class="fas fa-microphone-alt"></i>' },
+                512: { name: 'Stream', icon: '<i class="fas fa-video"></i>' },
+                1024: { name: 'View Channel', icon: '<i class="fas fa-eye"></i>' },
+                2048: { name: 'Send Messages', icon: '<i class="fas fa-comment"></i>' },
+                4096: { name: 'Send TTS Messages', icon: '<i class="fas fa-volume-up"></i>' },
+                8192: { name: 'Manage Messages', icon: '<i class="fas fa-trash-alt"></i>' },
+                16384: { name: 'Embed Links', icon: '<i class="fas fa-link"></i>' },
+                32768: { name: 'Attach Files', icon: '<i class="fas fa-paperclip"></i>' },
+                65536: { name: 'Read Message History', icon: '<i class="fas fa-history"></i>' },
+                131072: { name: 'Mention Everyone', icon: '<i class="fas fa-at"></i>' },
+                262144: { name: 'Use External Emojis', icon: '<i class="fas fa-grin-beam"></i>' },
+                524288: { name: 'View Guild Insights', icon: '<i class="fas fa-chart-line"></i>' },
+                1048576: { name: 'Connect (Voice)', icon: '<i class="fas fa-phone-alt"></i>' },
+                2097152: { name: 'Speak (Voice)', icon: '<i class="fas fa-microphone"></i>' },
+                4194304: { name: 'Mute Members', icon: '<i class="fas fa-microphone-slash"></i>' },
+                8388608: { name: 'Deafen Members', icon: '<i class="fas fa-headphones-slash"></i>' },
+                16777216: { name: 'Move Members', icon: '<i class="fas fa-exchange-alt"></i>' },
+                33554432: { name: 'Use VAD (Voice Activity Detection)', icon: '<i class="fas fa-microphone-alt-slash"></i>' },
+                67108864: { name: 'Change Nickname', icon: '<i class="fas fa-signature"></i>' },
+                134217728: { name: 'Manage Nicknames', icon: '<i class="fas fa-users-cog"></i>' },
+                268435456: { name: 'Manage Roles', icon: '<i class="fas fa-user-tag"></i>' },
+                536870912: { name: 'Manage Webhooks', icon: '<i class="fas fa-webhook"></i>' },
+                1073741824: { name: 'Manage Guild Expressions', icon: '<i class="fas fa-smile-wink"></i>' },
+                2147483648: { name: 'Use Application Commands', icon: '<i class="fas fa-keyboard"></i>' },
+                4294967296: { name: 'Request to Speak (Stage)', icon: '<i class="fas fa-hand-paper"></i>' },
+                8589934592: { name: 'Manage Events', icon: '<i class="fas fa-calendar-check"></i>' },
+                17179869184: { name: 'Manage Threads', icon: '<i class="fas fa-comments"></i>' },
+                34359738368: { name: 'Create Public Threads', icon: '<i class="fas fa-comment-medical"></i>' },
+                68719476736: { name: 'Create Private Threads', icon: '<i class="fas fa-comment-slash"></i>' },
+                137438953472: { name: 'Use External Stickers', icon: '<i class="fas fa-sticker-mule"></i>' },
+                274877906944: { name: 'Send Messages in Threads', icon: '<i class="fas fa-comment-dots"></i>' },
+                549755813888: { name: 'Use Embedded Activities', icon: '<i class="fas fa-gamepad"></i>' },
+                1099511627776: { name: 'Moderate Members (Timeout)', icon: '<i class="fas fa-gavel"></i>' },
+                2199023255552: { name: 'View Creator Monetization Analytics', icon: '<i class="fas fa-dollar-sign"></i>' },
+                4398046511104: { name: 'Use Soundboard', icon: '<i class="fas fa-volume-up"></i>' },
+                8796093022208: { name: 'Create Guild Expressions', icon: '<i class="fas fa-magic"></i>' },
+                17592186044416: { name: 'Create Events', icon: '<i class="fas fa-calendar-plus"></i>' },
+                35184372088832: { name: 'Use External Sounds', icon: '<i class="fas fa-music"></i>' },
+                70368744177664: { name: 'Send Voice Messages', icon: '<i class="fas fa-microphone-lines"></i>' },
+                281474976710656: { name: 'Send Polls', icon: '<i class="fas fa-poll"></i>' },
+                562949953421312: { name: 'Use External Apps', icon: '<i class="fas fa-puzzle-piece"></i>' }
+            };
+
+
+            let hasGuildPermissions = false;
+            if (guildPermissions !== undefined && guildPermissions !== null) {
+                for (const permValueStr in GUILD_PERMISSIONS_MAP) {
+                    const permValue = parseInt(permValueStr);
+                    if ((guildPermissions & permValue) === permValue) {
+                        hasGuildPermissions = true;
+                        const permInfo = GUILD_PERMISSIONS_MAP[permValueStr];
+                        const listItem = document.createElement('div');
+                        listItem.className = 'permission-list-item';
+                        listItem.innerHTML = `${permInfo.icon}<span>${permInfo.name}</span>`;
+                        guildPermissionsList.appendChild(listItem);
+                    }
+                }
+            }
+            if (!hasGuildPermissions) {
+                 guildPermissionsList.innerHTML = '<span class="text-muted">No specific guild permissions.</span>';
+            }
+        });
+    </script>
+</body>
+</html>

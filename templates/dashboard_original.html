@@ -1,0 +1,1736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-6NJBX4DMFQ"></script>
+    <meta name="google-adsense-account" content="ca-pub-7740246956515737">
+    <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-6NJBX4DMFQ');
+    </script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="description" content="{{ server.name }} Dashboard — live stats, activity timeline, top members, sentiment analysis, and more.">
+    <meta name="robots" content="noindex, nofollow">
+    <!-- Open Graph -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="{{ server.name }} Dashboard">
+    <meta property="og:description" content="Live server stats, activity timeline, top members, and sentiment analysis for {{ server.name }}.">
+    <meta property="og:image" content="{{ server.icon }}">
+    <meta property="og:site_name" content="{{ server.name }}">
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="{{ server.name }} Dashboard">
+    <meta name="twitter:description" content="Live server stats and analytics for {{ server.name }}.">
+    <meta name="twitter:image" content="{{ server.icon }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" href="{{ server.icon }}" type="image/png">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+    <script src="https://kit.fontawesome.com/e66300e8d1.js" crossorigin="anonymous"></script>
+    <title>{{ server.name }} Dashboard</title>
+    <style>
+        :root {
+            /* Colors from index.html */
+            --primary: #4a89dc;
+            --secondary: #967adc;
+            --accent: #3bafda;
+            --dark-bg: #0f172a;
+            --card-bg: rgba(19, 26, 48, 0.8);
+            --text-light: #e2e8f0;
+            --text-muted: #94a3b8;
+            --border-color: rgba(148, 163, 184, 0.2);
+            --rain-keeper: #8b5cf6;
+            
+            --primary-rgb: 74, 137, 220;
+            --secondary-rgb: 150, 122, 220;
+            --accent-rgb: 59, 175, 218;
+
+            /* Status colors */
+            --online-color: #43B581;
+            --idle-color: #FAA61A;
+            --dnd-color: #F04747;
+            --offline-color: #747F8D;
+            --booster-color: #F47FFF; 
+            --owner-color: #FFD700; 
+            --admin-color: #FF7043; 
+            --mod-color: #5DADE2; 
+            --rain-keeper-color: #8b5cf6;
+            --positive-color: #43B581; /* NEW */
+            --neutral-color: #FAA61A;  /* NEW */
+            --negative-color: #F04747; /* NEW */
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--dark-bg) 0%, #1e293b 100%);
+            color: var(--text-light);
+            overflow-x: hidden;
+            padding: 20px;
+            position: relative;
+        }
+
+        /* Raindrop background animation */
+        .raindrops {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            overflow: hidden;
+        }
+
+        .raindrop {
+            position: absolute;
+            width: 2px;
+            height: 30px;
+            background: linear-gradient(to bottom, transparent, var(--accent));
+            border-radius: 0 0 10px 10px;
+            animation: fall linear infinite;
+        }
+
+        @keyframes fall {
+            to { transform: translateY(100vh); }
+        }
+
+        .dashboard {
+            max-width: 1400px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 10;
+        }
+
+        /* Server Banner Styling */
+        .server-banner-container {
+            width: 100%;
+            height: 200px;
+            overflow: hidden;
+            border-radius: 20px;
+            margin-bottom: -70px;
+            position: relative;
+            background: linear-gradient(to right, var(--primary), var(--secondary));
+            box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+            border: 1px solid var(--border-color);
+        }
+
+        .server-banner {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .header-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 
+                0 10px 30px rgba(0, 0, 0, 0.3),
+                0 0 0 1px rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .server-icon {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 4px solid var(--primary);
+            box-shadow: 
+                0 0 0 8px var(--dark-bg),
+                0 0 0 10px rgba(var(--primary-rgb), 0.5),
+                0 15px 30px rgba(0, 0, 0, 0.4);
+            margin-top: -60px;
+            z-index: 2;
+            position: relative;
+        }
+
+        .header-info {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            width: 100%;
+        }
+
+        .header-text-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            position: relative; /* Added for search bar positioning */
+        }
+
+        .header-text-content h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(45deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            line-height: 1.2;
+        }
+
+        .metadata-container {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            color: var(--text-muted);
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: grid;
+            gap: 20px;
+            grid-template-columns: 2fr 1fr;
+            grid-template-areas:
+                "activity activity"
+                "engagement engagement" /* NEW: Moved here */
+                "pulse pulse"
+                "peak top-members"
+                "sentiment sentiment"
+                "channel boosters"
+                "streaks streaks"
+                "emojis emojis";
+            margin-top: 30px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 
+                0 10px 30px rgba(0, 0, 0, 0.3),
+                0 0 0 1px rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            min-height: 0;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .filter-target {
+            position: relative;
+        }
+
+        .filter-target.is-loading {
+            pointer-events: none;
+        }
+
+        .filter-target.is-loading::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            background: rgba(8, 13, 30, 0.62);
+            backdrop-filter: blur(6px);
+            z-index: 5;
+        }
+
+        .filter-target.is-loading::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 28px;
+            height: 28px;
+            margin: -14px 0 0 -14px;
+            border-radius: 50%;
+            border: 3px solid rgba(var(--accent-rgb), 0.18);
+            border-top-color: rgba(var(--accent-rgb), 0.96);
+            animation: filterSpin 0.8s linear infinite;
+            z-index: 6;
+        }
+
+        @keyframes filterSpin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 
+                0 15px 35px rgba(0, 0, 0, 0.4),
+                0 0 0 1px rgba(255, 255, 255, 0.1);
+        }
+        
+        /* Map each card to its specific grid area */
+        #activity-timeline-card { grid-area: activity; }
+        #top-members-card { grid-area: top-members; }
+        #peak-hours-card { grid-area: peak; }
+        #community-sentiment-card { grid-area: sentiment; }
+        #channel-activity-card { grid-area: channel; }
+        #server-boosters-card { grid-area: boosters; }
+        #member-streaks-card { grid-area: streaks; }
+        #top-emojis-card { grid-area: emojis; }
+        #engagement-metrics-card { grid-area: engagement; } /* NEW */
+        #community-pulse-card { grid-area: pulse; }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+            justify-content: space-between;
+        }
+
+        .card-header h2 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--text-light);
+            background: linear-gradient(45deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* KPI Container */
+        .kpi-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 20px;
+            width: 100%;
+            margin-top: 25px;
+        }
+        
+        .kpi {
+            text-align: center;
+            padding: 20px;
+            background: rgba(30, 41, 59, 0.6);
+            border-radius: 15px;
+            border: 1px solid var(--border-color);
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .kpi:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+        }
+        .kpi::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(45deg, var(--primary), var(--accent));
+        }
+
+        .kpi-value {
+            font-size: 2.2rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: var(--text-light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        .kpi-value i {
+            font-size: 1.2em;
+            color: var(--accent);
+        }
+
+        .kpi-label {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            font-weight: 600;
+        }
+
+        .chart-container {
+            height: 350px;
+            width: 100%;
+        }
+
+        .large-chart {
+            height: 450px;
+        }
+
+        .user-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .mini-profile-link {
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+
+        .user-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            background: rgba(30, 41, 59, 0.6);
+            border-radius: 15px;
+            border: 1px solid var(--border-color);
+            gap: 15px;
+            transition: all 0.2s ease;
+        }
+
+        .user-item:hover {
+            background: rgba(var(--accent-rgb), 0.15);
+            transform: translateX(5px);
+        }
+
+        .user-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid var(--primary);
+            flex-shrink: 0;
+        }
+
+        .user-info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .user-name {
+            font-weight: 600;
+            font-size: 16px;
+            color: var(--text-light);
+        }
+
+        .user-meta {
+            font-size: 13px;
+            color: var(--text-muted);
+            opacity: 0.9;
+        }
+
+        .user-rank {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-muted);
+            min-width: 30px;
+            text-align: right;
+            opacity: 0.7;
+        }
+
+        .channel-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .channel-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
+            background: rgba(30, 41, 59, 0.6);
+            border-radius: 15px;
+            border: 1px solid var(--border-color);
+            transition: all 0.2s ease;
+        }
+        .channel-item:hover {
+            background: rgba(var(--accent-rgb), 0.15);
+            transform: translateX(5px);
+        }
+
+        .channel-name {
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--primary);
+        }
+
+        .channel-count {
+            font-weight: 700;
+            color: var(--text-light);
+        }
+        
+        /* NEW: Channel percentage */
+        .channel-percentage {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: 500;
+            margin-left: 8px;
+            min-width: 50px;
+            text-align: right;
+        }
+        
+        .channel-item-content {
+            display: flex;
+            align-items: center;
+        }
+        
+        .channel-item-details {
+            display: flex;
+            align-items: center;
+        }
+
+
+        .emoji-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+            gap: 20px;
+            padding: 15px;
+        }
+
+        .emoji-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid var(--border-color);
+            padding: 15px 10px;
+            border-radius: 15px;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .emoji-item:hover {
+            transform: scale(1.05) translateY(-3px);
+            background: rgba(var(--accent-rgb), 0.15);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .emoji-img {
+            width: 50px;
+            height: 50px;
+            margin-bottom: 10px;
+            object-fit: contain;
+        }
+
+        .emoji-fallback {
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(var(--accent-rgb), 0.1);
+            border-radius: 8px;
+            margin-bottom: 10px;
+            font-size: 28px;
+            border: 1px solid rgba(var(--accent-rgb), 0.2);
+        }
+
+        .streak-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .streak-count {
+            font-size: 1.1em;
+            font-weight: 700;
+            color: var(--primary);
+        }
+        .streak-label {
+            font-size: 0.9em;
+            color: var(--text-muted);
+        }
+
+        /* Engagement Metrics */
+        .engagement-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .metric-card {
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid var(--border-color);
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .metric-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            border-color: var(--accent);
+        }
+        
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .metric-label {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .metric-context {
+            margin-top: 8px;
+            color: var(--text-muted);
+            font-size: 0.82rem;
+            line-height: 1.4;
+        }
+        
+        /* NEW: Sentiment Breakdown Container */
+        .sentiment-breakdown-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .sentiment-score {
+            text-align: center;
+            padding: 15px;
+            border-radius: 10px;
+            transition: transform 0.2s ease;
+        }
+        
+        .sentiment-score:hover {
+            transform: translateY(-3px);
+        }
+        
+        .sentiment-label {
+            font-size: 0.8rem;
+            color: var(--text-light);
+            font-weight: 600;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+        
+        .sentiment-value {
+            font-size: 1.8rem;
+            font-weight: 800;
+        }
+        
+        .positive { background-color: rgba(67, 181, 129, 0.2); border: 1px solid var(--positive-color); }
+        .positive .sentiment-value { color: var(--positive-color); }
+        
+        .neutral { background-color: rgba(250, 166, 26, 0.2); border: 1px solid var(--neutral-color); }
+        .neutral .sentiment-value { color: var(--neutral-color); }
+        
+        .negative { background-color: rgba(240, 71, 71, 0.2); border: 1px solid var(--negative-color); }
+        .negative .sentiment-value { color: var(--negative-color); }
+
+        /* Search Bar Styles */
+        .search-container {
+            position: relative;
+            width: 100%;
+            max-width: 400px; /* Limit width */
+            margin-top: 15px;
+            margin-bottom: 15px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 12px 20px 12px 45px;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            background-color: rgba(30, 41, 59, 0.6);
+            color: var(--text-light);
+            font-size: 1rem;
+            outline: none;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .search-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.3);
+            background-color: rgba(30, 41, 59, 0.8);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            font-size: 1.1rem;
+        }
+
+        .search-results {
+            position: absolute;
+            top: 100%; /* Position below the input */
+            left: 0;
+            width: 100%;
+            max-height: 300px; /* Limit height for scrollability */
+            overflow-y: auto;
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+            z-index: 100; /* Ensure it's above other content */
+            margin-top: 10px; /* Space between input and results */
+            padding: 10px 0;
+            display: none; /* Hidden by default */
+        }
+
+        .search-results .user-item {
+            border-radius: 0;
+            border: none;
+            padding: 10px 20px;
+            background: transparent;
+        }
+        .search-results .user-item:hover {
+            background: rgba(var(--accent-rgb), 0.1);
+            transform: none; /* No translateX for search results */
+        }
+        .search-results .user-item:not(:last-child) {
+            border-bottom: 1px solid rgba(var(--border-color), 0.5);
+        }
+
+        .search-results p {
+            padding: 10px 20px;
+            color: var(--text-muted);
+            text-align: center;
+        }
+
+        .filter-toolbar {
+            width: 100%;
+            max-width: 720px;
+            display: grid;
+            grid-template-columns: 180px minmax(0, 1fr);
+            gap: 14px;
+            margin-bottom: 10px;
+        }
+
+        .filter-field {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-width: 0;
+            text-align: left;
+        }
+
+        .filter-field label {
+            color: var(--text-muted);
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+        }
+
+        .filter-select {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            background-color: rgba(30, 41, 59, 0.6);
+            color: var(--text-light);
+            font-size: 0.95rem;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .filter-select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.3);
+            background-color: rgba(30, 41, 59, 0.8);
+        }
+
+        .filter-actions {
+            width: 100%;
+            max-width: 720px;
+            display: flex;
+            gap: 12px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+
+        .filter-apply,
+        .filter-reset {
+            padding: 10px 14px;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            background-color: rgba(30, 41, 59, 0.6);
+            color: var(--text-light);
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .filter-apply {
+            border-color: rgba(var(--accent-rgb), 0.38);
+            background-color: rgba(var(--accent-rgb), 0.16);
+        }
+
+        .filter-apply:hover,
+        .filter-reset:hover {
+            transform: translateY(-1px);
+            background-color: rgba(30, 41, 59, 0.82);
+        }
+
+        .filter-summary {
+            width: 100%;
+            max-width: 720px;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            line-height: 1.5;
+            text-align: left;
+            margin-bottom: 8px;
+        }
+        
+        /* Scrollbar Styles */
+        ::-webkit-scrollbar {
+            width: 12px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--dark-bg);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(45deg, var(--primary), var(--accent));
+            border-radius: 10px;
+            border: 2px solid var(--dark-bg);
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(45deg, var(--accent), var(--primary));
+        }
+
+        /* Responsive Styles */
+        @media (max-width: 992px) {
+            .server-banner-container {
+                height: 150px;
+                margin-bottom: -50px;
+            }
+            .server-icon { margin-top: -40px; }
+            .main-content {
+                grid-template-columns: 1fr;
+                grid-template-areas:
+                    "activity"
+                    "engagement"
+                    "pulse"
+                    "top-members"
+                    "peak"
+                    "sentiment"
+                    "channel"
+                    "boosters"
+                    "streaks"
+                    "emojis";
+            }
+            .chart-container { height: 300px; }
+            .large-chart { height: 350px; }
+        }
+
+        @media (max-width: 768px) {
+            body { padding: 15px; }
+            .server-banner-container {
+                height: 120px;
+                margin-bottom: -40px;
+            }
+            .server-icon { 
+                margin-top: -30px;
+                width: 80px;
+                height: 80px;
+            }
+            .header-card { padding: 20px; }
+            .header-text-content h1 { font-size: 1.8rem; }
+            .kpi-container { grid-template-columns: 1fr 1fr; gap: 15px; }
+            .kpi { padding: 15px; }
+            .kpi-value { font-size: 1.8rem; }
+            .kpi-label { font-size: 0.8rem; }
+            .card { padding: 20px; }
+            .card-header h2 { font-size: 1.2rem; }
+            .user-avatar { width: 40px; height: 40px; }
+            .user-name { font-size: 15px; }
+            .user-meta { font-size: 12px; }
+            .emoji-item { padding: 10px 8px; }
+            .emoji-img, .emoji-fallback { width: 40px; height: 40px; }
+            .channel-item { padding: 8px 10px; }
+            .search-input { padding: 10px 15px 10px 40px; }
+            .search-icon { left: 10px; font-size: 1rem; }
+            .sentiment-breakdown-container { grid-template-columns: 1fr; }
+            .filter-toolbar { grid-template-columns: 1fr; }
+        }
+        
+        @media (max-width: 480px) {
+            .kpi-container { grid-template-columns: 1fr; }
+            .kpi-value { font-size: 1.6rem; }
+            .chart-container { height: 250px; }
+            .large-chart { height: 300px; }
+            .engagement-metrics { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="raindrops" id="raindrops"></div>
+
+    <div class="dashboard">
+        {% if server.banner %}
+        <div class="server-banner-container">
+            <img src="{{ server.banner }}" class="server-banner" alt="Server Banner">
+        </div>
+        {% endif %}
+
+        <div class="header-card">
+            <img src="{{ server.icon }}" class="server-icon" alt="{{ server.name }}">
+            <div class="header-info">
+                <div class="header-text-content">
+                    <h1>{{ server.name }}</h1>
+                    <div class="metadata-container">
+                        <p class="data-period" id="processed-time"><i class="fas fa-bolt me-2"></i>Analytics processed {{ processed_at_text | default(updated_at_text) }}</p>
+                        <span id="source-time"><i class="fas fa-database me-2"></i>Source data {{ updated_at_text }}</span>
+                    </div>
+                    <div class="filter-toolbar">
+                        <div class="filter-field">
+                            <label for="interval-select">Interval</label>
+                            <select id="interval-select" class="filter-select">
+                                <option value="daily" {% if filter_state and filter_state.interval == 'daily' %}selected{% endif %}>Daily</option>
+                                <option value="weekly" {% if filter_state and filter_state.interval == 'weekly' %}selected{% endif %}>Weekly</option>
+                                <option value="monthly" {% if not filter_state or filter_state.interval == 'monthly' %}selected{% endif %}>Monthly</option>
+                                <option value="lifetime" {% if filter_state and filter_state.interval == 'lifetime' %}selected{% endif %}>Lifetime</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="filter-actions">
+                        <button type="button" id="apply-filter-btn" class="filter-apply">Apply Filter</button>
+                        <button type="button" id="reset-filter-btn" class="filter-reset">Reset Filter</button>
+                    </div>
+                    <div class="filter-summary" id="filter-range-label">Affects Activity Timeline, Top Members, Peak Hours, Community Sentiment, Channel Activity, and Member Activity Streaks. {{ filter_state.label if filter_state else '' }}</div>
+                    <div class="search-container">
+                        <i class="fas fa-search search-icon"></i>
+                        <input type="text" id="member-search-input" class="search-input" placeholder="Search members...">
+                        <div id="search-results" class="search-results">
+                            </div>
+                    </div>
+                </div>
+                <div class="kpi-container">
+                    <div class="kpi">
+                        <div id="messages-kpi" class="kpi-value"><i class="fas fa-comment-dots"></i>{{ "{:,}".format(messages) }}</div>
+                        <div class="kpi-label">Total Messages</div>
+                    </div>
+                    <div class="kpi">
+                        <div id="total-users-kpi" class="kpi-value">
+                            <i class="fas fa-users"></i>
+                            {% if total_users is not none %}
+                                {{ "{:,}".format(total_users) }}
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </div>
+                        <div class="kpi-label">Total Members</div>
+                    </div>
+                    <div class="kpi">
+                        <div id="active-users-kpi" class="kpi-value"><i class="fas fa-user-check"></i>{{ "{:,}".format(active_users) }}</div>
+                        <div class="kpi-label">Active Members</div>
+                    </div>
+                    <div class="kpi">
+                        <div id="rain-keepers-kpi" class="kpi-value"><i class="fas fa-cloud-sun-rain"></i>{{ "{:,}".format(rain_keepers) }}</div>
+                        <div class="kpi-label">Rain Keepers</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="card filter-target" id="activity-timeline-card" data-filtered-target>
+                <div class="card-header">
+                    <h2>Activity Timeline</h2>
+                    <i class="fas fa-chart-line" style="color: var(--accent);"></i>
+                </div>
+                <div class="chart-container large-chart">
+                    <canvas id="timeChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card" id="engagement-metrics-card">
+                <div class="card-header">
+                    <h2>Engagement Metrics</h2>
+                    <i class="fas fa-chart-pie" style="color: var(--secondary);"></i>
+                </div>
+                <div class="engagement-metrics">
+                    <div class="metric-card">
+                        <div class="metric-value" id="activity-rate">
+                            {% if total_users > 0 %}
+                                {{ "{:.1f}%".format((active_users / total_users) * 100) }}
+                            {% else %}
+                                0%
+                            {% endif %}
+                        </div>
+                        <div class="metric-label">Active Rate</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="messages-per-user">
+                            {% if total_users > 0 %}
+                                {{ "{:.1f}".format(messages / total_users) }}
+                            {% else %}
+                                0
+                            {% endif %}
+                        </div>
+                        <div class="metric-label">Messages per User</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="rain-keeper-rate">
+                            {% if total_users > 0 %}
+                                {{ "{:.1f}%".format((rain_keepers / total_users) * 100) }}
+                            {% else %}
+                                0%
+                            {% endif %}
+                        </div>
+                        <div class="metric-label">Rain Keeper Rate</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="streak-ratio">
+                            {% if active_users > 0 %}
+                                {{ "{:.1f}%".format((active_streaks_data | length / active_users) * 100) }}
+                            {% else %}
+                                0%
+                            {% endif %}
+                        </div>
+                        <div class="metric-label">Streak Ratio</div>
+                    </div>
+                </div>
+            </div>
+
+            {% set insights = activity_insights | default({}) %}
+            <div class="card filter-target" id="community-pulse-card" data-filtered-target>
+                <div class="card-header">
+                    <h2>Community Pulse</h2>
+                    <i class="fas fa-bolt" style="color: var(--accent);"></i>
+                </div>
+                <div class="engagement-metrics">
+                    <div class="metric-card">
+                        <div class="metric-value" id="messages-today">{{ "{:,}".format(insights.messages_today | default(0)) }}</div>
+                        <div class="metric-label">Messages Today</div>
+                        <div class="metric-context" id="messages-yesterday">{{ "{:,}".format(insights.messages_yesterday | default(0)) }} yesterday</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="messages-last-7-days">{{ "{:,}".format(insights.messages_last_7_days | default(0)) }}</div>
+                        <div class="metric-label">Last 7 Days</div>
+                        <div class="metric-context">Recent activity volume</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="daily-average">{{ "{:,.1f}".format(insights.daily_average | default(0)) }}</div>
+                        <div class="metric-label">Daily Average</div>
+                        <div class="metric-context" id="active-days">{{ "{:,}".format(insights.active_days | default(0)) }} active days tracked</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="busiest-day-messages">{{ "{:,}".format(insights.busiest_day_messages | default(0)) }}</div>
+                        <div class="metric-label">Busiest Day</div>
+                        <div class="metric-context" id="busiest-day-label">{{ insights.busiest_day_label | default('N/A') }}</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="most-active-hour-label">{{ insights.most_active_hour_label | default('N/A') }}</div>
+                        <div class="metric-label">Peak Hour</div>
+                        <div class="metric-context" id="most-active-hour-messages">{{ "{:,}".format(insights.most_active_hour_messages | default(0)) }} messages</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="channel-count">{{ "{:,}".format(insights.channel_count | default(0)) }}</div>
+                        <div class="metric-label">Active Channels</div>
+                        <div class="metric-context">Channels with messages</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card filter-target" id="top-members-card" data-filtered-target>
+                <div class="card-header">
+                    <h2>Top Members</h2>
+                    <i class="fas fa-trophy" style="color: var(--owner-color);"></i>
+                </div>
+                <div id="top-members-list" class="user-list">
+                    {% for user in top_users_data %}
+                    <a href="/users/{{ user.user_id }}" class="mini-profile-link">
+                        <div class="user-item">
+                            <span class="user-rank">{{ loop.index }}.</span>
+                            <img src="{{ user.avatar }}" class="user-avatar" alt="{{ user.name }}">
+                            <div class="user-info">
+                                <div class="user-name">{{ user.name }}</div>
+                                <div class="user-meta">{{ "{:,}".format(user.messages) }} messages</div>
+                            </div>
+                        </div>
+                    </a>
+                    {% endfor %}
+                    {% if not top_users_data %}
+                    <p class="text-muted" style="text-align: center; margin-top: 10px;">No top members found.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card filter-target" id="peak-hours-card" data-filtered-target>
+                <div class="card-header">
+                    <h2>Peak Hours</h2>
+                    <i class="fas fa-clock" style="color: var(--accent);"></i>
+                </div>
+                <div class="chart-container">
+                    <canvas id="hourChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card filter-target" id="community-sentiment-card" data-filtered-target>
+                <div class="card-header">
+                    <h2>Community Sentiment</h2>
+                    <i class="fas fa-grin-beam" style="color: var(--online-color);"></i>
+                </div>
+                <div class="chart-container">
+                    <canvas id="sentimentChart"></canvas>
+                </div>
+                <div class="sentiment-breakdown-container">
+                    <div class="sentiment-score positive">
+                        <div class="sentiment-label">Positive</div>
+                        <div class="sentiment-value" id="positive-score">N/A</div>
+                    </div>
+                    <div class="sentiment-score neutral">
+                        <div class="sentiment-label">Neutral</div>
+                        <div class="sentiment-value" id="neutral-score">N/A</div>
+                    </div>
+                    <div class="sentiment-score negative">
+                        <div class="sentiment-label">Negative</div>
+                        <div class="sentiment-value" id="negative-score">N/A</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card filter-target" id="channel-activity-card" data-filtered-target>
+                <div class="card-header">
+                    <h2>Channel Activity</h2>
+                    <i class="fas fa-hashtag" style="color: var(--accent);"></i>
+                </div>
+                <div id="channel-list" class="channel-list">
+                    {% for channel in channel_activity %}
+                    <div class="channel-item">
+                        <div class="channel-item-content">
+                            <span>#{{ channel.channel }}</span>
+                        </div>
+                        <div class="channel-item-details">
+                            <span class="channel-count">{{ "{:,}".format(channel.count) }}</span>
+                            <span class="channel-percentage">{{ "{:.1f}%".format((channel.count / messages) * 100) }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% if not channel_activity %}
+                    <p class="text-muted" style="text-align: center; margin-top: 10px;">No channel activity.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if boosters %}
+            <div class="card" id="server-boosters-card">
+                <div class="card-header">
+                    <h2>Server Boosters</h2>
+                    <i class="fas fa-star" style="color: var(--booster-color);"></i>
+                </div>
+                <div id="booster-list" class="user-list">
+                    {% for booster in boosters %}
+                    <a href="/users/{{ booster.id }}" class="mini-profile-link">
+                        <div class="user-item">
+                            <img src="{{ booster.avatar }}" class="user-avatar" alt="{{ booster.name }}">
+                            <div class="user-info">
+                                <div class="user-name">{{ booster.name }}</div>
+                                {% if booster.boosted_since %}<div class="user-meta">Boosting since: {{ booster.boosted_since | format_timestamp_relative }}</div>{% endif %}
+                            </div>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="card filter-target" id="member-streaks-card" data-filtered-target>
+                <div class="card-header">
+                    <h2>Member Activity Streaks</h2>
+                    <i class="fas fa-fire-alt" style="color: var(--rain-keeper);"></i>
+                </div>
+                <div id="member-streaks-list" class="user-list">
+                    {% for user in active_streaks_data %}
+                    <a href="/users/{{ user.user_id }}" class="mini-profile-link">
+                        <div class="user-item">
+                            <img src="{{ user.avatar }}" class="user-avatar" alt="{{ user.display_name }}">
+                            <div class="user-info">
+                                <div class="user-name">{{ user.display_name }}</div>
+                                <div class="user-meta">
+                                    {% if user.current_streak > 0 %}
+                                        <div class="streak-info">
+                                            <span class="streak-count">{{ user.current_streak }}</span>
+                                            <span class="streak-label">day{{ 's' if user.current_streak != 1 }} current streak</span>
+                                        </div>
+                                    {% endif %}
+                                    {% if user.longest_streak > 0 %}
+                                        <div class="streak-info">
+                                            <span class="streak-count">{{ user.longest_streak }}</span>
+                                            <span class="streak-label">day{{ 's' if user.longest_streak != 1 }} longest streak</span>
+                                        </div>
+                                    {% endif %}
+                                    {% if user.current_streak == 0 and user.longest_streak == 0 %}
+                                        No recent streak
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </a>
+                    {% endfor %}
+                    {% if not active_streaks_data %}
+                    <p class="text-muted" style="text-align: center; margin-top: 10px;">No streak data available yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if top_emojis %}
+            <div class="card" id="top-emojis-card">
+                <div class="card-header">
+                    <h2>Top Emojis</h2>
+                    <i class="fas fa-grin-alt" style="color: var(--owner-color);"></i>
+                </div>
+                <div id="emoji-grid" class="emoji-grid">
+                    {% for emoji in top_emojis %}
+                        <div class="emoji-item">
+                            {% if emoji.is_unicode %}
+                                <div class="emoji-fallback">{{ emoji.name }}</div>
+                            {% elif emoji.url %}
+                                <img src="{{ emoji.url }}" class="emoji-img" alt="{{ emoji.name }}">
+                            {% endif %}
+                            <div class="emoji-count">{{ "{:,}".format(emoji.count) }}</div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+    // Create raindrop animation
+    function createRaindrops() {
+        const container = document.getElementById('raindrops');
+        const dropsCount = 80;
+        const screenHeight = window.innerHeight;
+
+        for (let i = 0; i < dropsCount; i++) {
+            const drop = document.createElement('div');
+            drop.classList.add('raindrop');
+
+            // Random properties
+            const left = Math.random() * 100;
+            const duration = 0.5 + Math.random() * 1.5;
+            const delay = Math.random() * 2;
+            const length = 10 + Math.random() * 20;
+            const opacity = 0.3 + Math.random() * 0.4;
+
+            drop.style.left = `${left}%`;
+            drop.style.height = `${length}px`;
+            drop.style.animationDuration = `${duration}s`;
+            drop.style.animationDelay = `${delay}s`;
+            drop.style.opacity = opacity;
+
+            // Add these two lines to set the initial random position
+            const startPos = -screenHeight * Math.random(); 
+            drop.style.transform = `translateY(${startPos}px)`;
+
+            container.appendChild(drop);
+        }
+    }
+    
+    function formatTimeAgo(dateString) {
+        if (!dateString) {
+            return 'N/A';
+        }
+
+        // Attempt to remove microseconds if present, and parse
+        let parsedDateString = dateString;
+        const microsecondRegex = /\.\d{1,6}(?=[Z+-])/;
+        if (microsecondRegex.test(dateString)) {
+            parsedDateString = dateString.replace(microsecondRegex, '');
+        }
+
+        const now = new Date();
+        const past = new Date(parsedDateString);
+        
+        if (isNaN(past.getTime())) {
+            return 'Invalid Date';
+        }
+
+        const seconds = Math.floor((now - past) / 1000);
+        const minutes = Math.floor(seconds / 60);
+        const hours = Math.floor(minutes / 60);
+        const days = Math.floor(hours / 24);
+        const months = Math.floor(days / 30);
+        const years = Math.floor(days / 365);
+        
+        if (seconds < 60) return seconds === 0 ? 'just now' : `${seconds} secs ago`;
+        if (minutes < 60) return `${minutes} mins ago`;
+        if (hours < 24) return `${hours} hours ago`;
+        if (days < 30) return `${days} days ago`;
+        if (months < 12) return `${months} months ago`;
+        return `${years} years ago`;
+    }
+
+    // NEW: Calculate sentiment breakdown
+    function calculateSentimentBreakdown(sentimentData) {
+        let positiveCount = 0;
+        let neutralCount = 0;
+        let negativeCount = 0;
+
+        sentimentData.forEach(d => {
+            if (d.sentiment > 0.05) {
+                positiveCount++;
+            } else if (d.sentiment < -0.05) {
+                negativeCount++;
+            } else {
+                neutralCount++;
+            }
+        });
+        
+        const total = positiveCount + neutralCount + negativeCount;
+        if (total > 0) {
+            document.getElementById('positive-score').textContent = `${((positiveCount / total) * 100).toFixed(1)}%`;
+            document.getElementById('neutral-score').textContent = `${((neutralCount / total) * 100).toFixed(1)}%`;
+            document.getElementById('negative-score').textContent = `${((negativeCount / total) * 100).toFixed(1)}%`;
+        } else {
+            document.getElementById('positive-score').textContent = '0%';
+            document.getElementById('neutral-score').textContent = '0%';
+            document.getElementById('negative-score').textContent = '0%';
+        }
+    }
+
+
+    document.addEventListener('DOMContentLoaded', function() {
+        createRaindrops();
+        calculateSentimentBreakdown({{ sentiment_data | tojson | safe }});
+        
+        const rootStyles = getComputedStyle(document.documentElement);
+        // Extracting CSS variables for Chart.js
+        const primaryColor = rootStyles.getPropertyValue('--primary').trim();
+        const accentRgb = rootStyles.getPropertyValue('--accent-rgb').trim();
+        const cardBgColor = rootStyles.getPropertyValue('--card-bg').trim();
+        const textLightColor = rootStyles.getPropertyValue('--text-light').trim();
+        const textMutedColor = rootStyles.getPropertyValue('--text-muted').trim();
+        const borderColor = rootStyles.getPropertyValue('--border-color').trim();
+
+        // Common chart options
+        const commonChartOptions = {
+            maintainAspectRatio: false,
+            responsive: true,
+            plugins: {
+                legend: {
+                    labels: {
+                        color: textLightColor,
+                        font: { size: 14 }
+                    }
+                },
+                tooltip: {
+                    backgroundColor: cardBgColor,
+                    titleColor: primaryColor,
+                    bodyColor: textLightColor,
+                    borderColor: borderColor,
+                    borderWidth: 1,
+                    cornerRadius: 5,
+                    displayColors: false,
+                    padding: 10
+                }
+            },
+            scales: {
+                x: {
+                    grid: { color: 'rgba(165, 165, 186, 0.1)', drawBorder: false },
+                    ticks: { color: textMutedColor, font: { size: 12 } },
+                    barPercentage: 0.8,
+                    categoryPercentage: 0.8
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(165, 165, 186, 0.1)', drawBorder: false },
+                    ticks: { color: textMutedColor, font: { size: 12 } }
+                }
+            }
+        };
+
+        // Activity Timeline Chart
+        const timeChartCtx = document.getElementById('timeChart').getContext('2d');
+        const timeChart = new Chart(timeChartCtx, {
+            type: 'line',
+            data: {
+                labels: {{ activity | tojson | safe }}.map(d => new Date(d.date).toLocaleDateString()),
+                datasets: [{
+                    label: 'Messages',
+                    data: {{ activity | tojson | safe }}.map(d => d.messages),
+                    borderColor: primaryColor,
+                    backgroundColor: `rgba(${accentRgb}, 0.25)`,
+                    tension: 0.4,
+                    fill: true,
+                    pointRadius: 3,
+                    pointBackgroundColor: primaryColor,
+                    pointBorderColor: textLightColor,
+                    pointHoverRadius: 5
+                }]
+            },
+            options: commonChartOptions
+        });
+
+        // Peak Hours Chart
+        const hourChartCtx = document.getElementById('hourChart').getContext('2d');
+        const initialHoursData = {{ heatmap | tojson | safe }}.reduce((acc, day) => {
+            day.forEach((count, hour) => {
+                acc[hour] = (acc[hour] || 0) + count;
+            });
+            return acc;
+        }, new Array(24).fill(0));
+        const hourChart = new Chart(hourChartCtx, {
+            type: 'bar',
+            data: {
+                labels: Array.from({length: 24}, (_, i) => `${i}:00`),
+                datasets: [{
+                    label: 'Messages',
+                    data: initialHoursData,
+                    backgroundColor: primaryColor,
+                    borderColor: primaryColor,
+                    borderWidth: 1,
+                    borderRadius: 6,
+                    hoverBackgroundColor: `rgba(${accentRgb}, 0.8)`
+                }]
+            },
+            options: commonChartOptions
+        });
+
+        // Community Sentiment Chart
+        const sentimentChartCtx = document.getElementById('sentimentChart').getContext('2d');
+        const sentimentChart = new Chart(sentimentChartCtx, {
+            type: 'line',
+            data: {
+                labels: {{ sentiment_data | tojson | safe }}.map(d => new Date(d.date).toLocaleDateString()),
+                datasets: [{
+                    label: 'Sentiment Score',
+                    data: {{ sentiment_data | tojson | safe }}.map(d => d.sentiment),
+                    borderColor: `rgb(${accentRgb})`,
+                    backgroundColor: `rgba(${accentRgb}, 0.25)`,
+                    tension: 0.4,
+                    fill: true,
+                    pointRadius: 3,
+                    pointBackgroundColor: `rgb(${accentRgb})`,
+                    pointBorderColor: textLightColor,
+                    pointHoverRadius: 5
+                }]
+            },
+            options: commonChartOptions
+        });
+
+        function formatNumber(num) {
+            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        }
+
+        // Generic list update function
+        function updateList(containerId, items, templateFunction) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            if (items.length > 0) {
+                items.forEach((item, index) => {
+                    container.innerHTML += templateFunction(item, index);
+                });
+            } else {
+                container.innerHTML = `<p class="text-muted" style="text-align: center; margin-top: 10px;">No data available.</p>`;
+            }
+        }
+        
+        let dashboardFetchController = null;
+        let dashboardRefreshTimer = null;
+        let dashboardRequestVersion = 0;
+
+        function scheduleDashboardRefresh() {
+            if (dashboardRefreshTimer) {
+                clearTimeout(dashboardRefreshTimer);
+            }
+            dashboardRefreshTimer = setTimeout(() => updateDashboard(false), 30000);
+        }
+
+        // Main updateDashboard function
+        function updateDashboard(showLoading = false) {
+            const queryString = getFilterQueryString();
+            const requestVersion = ++dashboardRequestVersion;
+            if (dashboardFetchController) {
+                dashboardFetchController.abort();
+            }
+            dashboardFetchController = new AbortController();
+            if (showLoading) {
+                setFilteredLoading(true);
+            }
+
+            fetch(`/api/data?${queryString}`, { signal: dashboardFetchController.signal })
+                .then(response => response.json())
+                .then(data => {
+                    if (requestVersion !== dashboardRequestVersion) {
+                        return;
+                    }
+                    document.getElementById('messages-kpi').innerHTML = `<i class="fas fa-comment-dots"></i>${formatNumber(data.messages)}`;
+                    document.getElementById('total-users-kpi').innerHTML = `<i class="fas fa-users"></i>${data.total_users !== null ? formatNumber(data.total_users) : 'N/A'}`;
+                    document.getElementById('active-users-kpi').innerHTML = `<i class="fas fa-user-check"></i>${formatNumber(data.active_users)}`;
+                    document.getElementById('rain-keepers-kpi').innerHTML = `<i class="fas fa-cloud-sun-rain"></i>${formatNumber(data.rain_keepers)}`;
+                    document.getElementById('source-time').innerHTML = `<i class="fas fa-database me-2"></i>Source data ${data.updated_at_text}`;
+                    if (data.last_processed_at) {
+                        document.getElementById('processed-time').innerHTML = `<i class="fas fa-bolt me-2"></i>Analytics processed ${formatTimeAgo(data.last_processed_at)}`;
+                    }
+
+                    if (data.filter_state) {
+                        intervalSelect.value = data.filter_state.interval || intervalSelect.value;
+                        filterRangeLabel.textContent = `Affects Activity Timeline, Top Members, Peak Hours, Community Sentiment, Channel Activity, and Member Activity Streaks. ${data.filter_state.label || ''}`;
+                    }
+
+                    // Update engagement metrics
+                    if (data.total_users > 0) {
+                        document.getElementById('activity-rate').textContent = 
+                            `${((data.active_users / data.total_users) * 100).toFixed(1)}%`;
+                        document.getElementById('messages-per-user').textContent = 
+                            `${(data.messages / data.total_users).toFixed(1)}`;
+                        document.getElementById('rain-keeper-rate').textContent = 
+                            `${((data.rain_keepers / data.total_users) * 100).toFixed(1)}%`;
+                    }
+                    
+                    if (data.active_users > 0) {
+                        const streakRatio = (data.active_streaks_data.length / data.active_users) * 100;
+                        document.getElementById('streak-ratio').textContent = 
+                            `${streakRatio.toFixed(1)}%`;
+                    }
+
+                    const insights = data.activity_insights || {};
+                    document.getElementById('messages-today').textContent = formatNumber(insights.messages_today || 0);
+                    document.getElementById('messages-yesterday').textContent = `${formatNumber(insights.messages_yesterday || 0)} yesterday`;
+                    document.getElementById('messages-last-7-days').textContent = formatNumber(insights.messages_last_7_days || 0);
+                    document.getElementById('daily-average').textContent = Number(insights.daily_average || 0).toFixed(1);
+                    document.getElementById('active-days').textContent = `${formatNumber(insights.active_days || 0)} active days tracked`;
+                    document.getElementById('busiest-day-messages').textContent = formatNumber(insights.busiest_day_messages || 0);
+                    document.getElementById('busiest-day-label').textContent = insights.busiest_day_label || 'N/A';
+                    document.getElementById('most-active-hour-label').textContent = insights.most_active_hour_label || 'N/A';
+                    document.getElementById('most-active-hour-messages').textContent = `${formatNumber(insights.most_active_hour_messages || 0)} messages`;
+                    document.getElementById('channel-count').textContent = formatNumber(insights.channel_count || 0);
+
+                    // Update all charts
+                    timeChart.data.labels = data.activity.map(d => new Date(d.date).toLocaleDateString());
+                    timeChart.data.datasets[0].data = data.activity.map(d => d.messages);
+                    timeChart.update();
+
+                    const hoursData = data.heatmap.reduce((acc, day) => {
+                        day.forEach((count, hour) => { acc[hour] = (acc[hour] || 0) + count; });
+                        return acc;
+                    }, new Array(24).fill(0));
+                    hourChart.data.datasets[0].data = hoursData;
+                    hourChart.update();
+
+                    sentimentChart.data.labels = data.sentiment_data.map(d => new Date(d.date).toLocaleDateString());
+                    sentimentChart.data.datasets[0].data = data.sentiment_data.map(d => d.sentiment);
+                    sentimentChart.update();
+                    
+                    // Update sentiment breakdown
+                    calculateSentimentBreakdown(data.sentiment_data || []);
+
+                    // Update lists
+                    updateList('top-members-list', data.top_users_data, (item, index) => `
+                        <a href="/users/${item.user_id}" class="mini-profile-link">
+                            <div class="user-item">
+                                <span class="user-rank">${index + 1}.</span>
+                                <img src="${item.avatar}" class="user-avatar" alt="${item.name}">
+                                <div class="user-info">
+                                    <div class="user-name">${item.name}</div>
+                                    <div class="user-meta">${formatNumber(item.messages)} messages</div>
+                                </div>
+                            </div>
+                        </a>
+                    `);
+
+                    updateList('booster-list', data.boosters, (item) => `
+                        <a href="/users/${item.id}" class="mini-profile-link">
+                            <div class="user-item">
+                                <img src="${item.avatar}" class="user-avatar" alt="${item.name}">
+                                <div class="user-info">
+                                    <div class="user-name">${item.name}</div>
+                                    ${item.boosted_since ? `<div class="user-meta">Boosting since: ${formatTimeAgo(item.boosted_since)}</div>` : ''}
+                                </div>
+                            </div>
+                        </a>
+                    `);
+
+                    // Update channel list with percentages
+                    const totalMessages = data.messages;
+                    updateList('channel-list', data.channel_activity, (item) => `
+                        <div class="channel-item">
+                            <div class="channel-item-content">
+                                <span>#${item.channel}</span>
+                            </div>
+                            <div class="channel-item-details">
+                                <span class="channel-count">${formatNumber(item.count)}</span>
+                                <span class="channel-percentage">${totalMessages > 0 ? ((item.count / totalMessages) * 100).toFixed(1) + '%' : '0%'}</span>
+                            </div>
+                        </div>
+                    `);
+
+                    updateList('emoji-grid', data.top_emojis, (item) => `
+                        <div class="emoji-item">
+                            ${item.is_unicode ? `<div class="emoji-fallback">${item.name}</div>` : `<img src="${item.url}" class="emoji-img" alt="${item.name}">`}
+                            <div class="emoji-count">${formatNumber(item.count)}</div>
+                        </div>
+                    `);
+
+                    // Update Member Streaks list
+                    if (data.active_streaks_data) {
+                        updateList('member-streaks-list', data.active_streaks_data, (user) => `
+                            <a href="/users/${user.user_id}" class="mini-profile-link">
+                                <div class="user-item">
+                                    <img src="${user.avatar}" class="user-avatar" alt="${user.display_name}">
+                                    <div class="user-info">
+                                        <div class="user-name">${user.display_name}</div>
+                                        <div class="user-meta">
+                                            ${user.current_streak > 0 ? `<div class="streak-info"><span class="streak-count">${user.current_streak}</span> <span class="streak-label">day${user.current_streak != 1 ? 's' : ''} current streak</span></div>` : ''}
+                                            ${user.longest_streak > 0 ? `<div class="streak-info"><span class="streak-count">${user.longest_streak}</span> <span class="streak-label">day${user.longest_streak != 1 ? 's' : ''} longest streak</span></div>` : ''}
+                                            ${user.current_streak == 0 && user.longest_streak == 0 ? 'No recent streak' : ''}
+                                        </div>
+                                    </div>
+                                </div>
+                            </a>
+                        `);
+                    } else {
+                        document.getElementById('member-streaks-list').innerHTML = '<p class="text-muted" style="text-align: center; margin-top: 10px;">No streak data available yet.</p>';
+                    }
+                })
+                .catch(error => {
+                    if (error.name !== 'AbortError') {
+                        console.error('Error fetching data:', error);
+                    }
+                })
+                .finally(() => {
+                    if (requestVersion !== dashboardRequestVersion) {
+                        return;
+                    }
+                    dashboardFetchController = null;
+                    if (showLoading) {
+                        setFilteredLoading(false);
+                    }
+                    scheduleDashboardRefresh();
+                });
+        }
+
+        // --- Search Bar Functionality ---
+        const searchInput = document.getElementById('member-search-input');
+        const searchResultsDiv = document.getElementById('search-results');
+        const intervalSelect = document.getElementById('interval-select');
+        const filterRangeLabel = document.getElementById('filter-range-label');
+        const applyFilterButton = document.getElementById('apply-filter-btn');
+        const resetFilterButton = document.getElementById('reset-filter-btn');
+        const filteredTargets = Array.from(document.querySelectorAll('[data-filtered-target]'));
+        let searchTimeout = null;
+        const defaultFilterState = {
+            interval: '{{ filter_state.interval if filter_state else "monthly" }}'
+        };
+
+        function setFilteredLoading(isLoading) {
+            filteredTargets.forEach((element) => {
+                element.classList.toggle('is-loading', isLoading);
+            });
+        }
+
+        function getFilterQueryString() {
+            const params = new URLSearchParams();
+            params.set('interval', intervalSelect.value || 'monthly');
+            return params.toString();
+        }
+
+        function syncFilterUrl() {
+            const query = getFilterQueryString();
+            window.history.replaceState({}, '', `${window.location.pathname}?${query}`);
+        }
+
+        function applySelectedFilter() {
+            syncFilterUrl();
+            updateDashboard(true);
+        }
+
+        function resetFilter() {
+            intervalSelect.value = defaultFilterState.interval || 'monthly';
+            applySelectedFilter();
+        }
+
+        searchInput.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            const query = this.value.trim();
+
+            if (query.length === 0) {
+                searchResultsDiv.style.display = 'none';
+                searchResultsDiv.innerHTML = '';
+                return;
+            }
+
+            searchTimeout = setTimeout(() => {
+                fetch(`/api/members/search?q=${encodeURIComponent(query)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        searchResultsDiv.innerHTML = '';
+                        if (data.length > 0) {
+                            data.forEach(member => {
+                                const userItemHtml = `
+                                    <a href="/users/${member.id}" class="mini-profile-link">
+                                        <div class="user-item">
+                                            <img src="${member.avatar}" class="user-avatar" alt="${member.display_name || member.name}">
+                                            <div class="user-info">
+                                                <div class="user-name">${member.display_name || member.name}</div>
+                                                <div class="user-meta">${member.global_name ? `@${member.global_name}` : ''}</div>
+                                            </div>
+                                        </div>
+                                    </a>
+                                `;
+                                searchResultsDiv.insertAdjacentHTML('beforeend', userItemHtml);
+                            });
+                            searchResultsDiv.style.display = 'block';
+                        } else {
+                            searchResultsDiv.innerHTML = '<p>No members found.</p>';
+                            searchResultsDiv.style.display = 'block';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching search results:', error);
+                        searchResultsDiv.innerHTML = '<p>Error searching members.</p>';
+                        searchResultsDiv.style.display = 'block';
+                    });
+            }, 300); // Debounce time
+        });
+
+        // Hide search results when clicking outside
+        document.addEventListener('click', function(event) {
+            if (!searchInput.contains(event.target) && !searchResultsDiv.contains(event.target)) {
+                searchResultsDiv.style.display = 'none';
+            }
+        });
+
+        // Keep search results visible when interacting with them
+        searchResultsDiv.addEventListener('click', function(event) {
+            event.stopPropagation(); // Prevent document click from hiding results
+        });
+
+        applyFilterButton.addEventListener('click', applySelectedFilter);
+        resetFilterButton.addEventListener('click', resetFilter);
+        updateDashboard(true);
+    });
+    </script>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7740246956515737"
+     crossorigin="anonymous"></script>
+    <!-- Ads #1 -->
+    <ins class="adsbygoogle"
+        style="display:block"
+        data-ad-client="ca-pub-7740246956515737"
+        data-ad-slot="9686471023"
+        data-ad-format="auto"
+        data-full-width-responsive="true"></ins>
+    <script>
+        (adsbygoogle = window.adsbygoogle || []).push({});
+    </script>
+</body>
+</html>

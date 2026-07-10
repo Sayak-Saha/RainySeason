@@ -1,0 +1,1812 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-6NJBX4DMFQ"></script>
+    <meta name="google-adsense-account" content="ca-pub-7740246956515737">
+    <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-6NJBX4DMFQ');
+    </script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="description" content="{{ server.name }} dashboard with live member, message, channel, and sentiment analytics.">
+    <meta name="robots" content="noindex, nofollow">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="{{ server.name }} Dashboard">
+    <meta property="og:description" content="Live server stats, member trends, activity charts, and community analytics.">
+    <meta property="og:image" content="{{ server.icon }}">
+    <meta property="og:site_name" content="{{ server.name }}">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="{{ server.name }} Dashboard">
+    <meta name="twitter:description" content="Live analytics for {{ server.name }}.">
+    <meta name="twitter:image" content="{{ server.icon }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="icon" href="{{ server.icon }}" type="image/png">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+    <script src="https://kit.fontawesome.com/e66300e8d1.js" crossorigin="anonymous"></script>
+    <title>{{ server.name }} Dashboard</title>
+    <style>
+        :root {
+            --primary: #4a89dc;
+            --secondary: #967adc;
+            --accent: #3bafda;
+            --dark-bg: #0f172a;
+            --panel-bg: rgba(20, 27, 49, 0.9);
+            --panel-bg-soft: rgba(28, 36, 63, 0.84);
+            --box-bg: rgba(255, 255, 255, 0.06);
+            --box-bg-strong: rgba(255, 255, 255, 0.08);
+            --text-light: #e2e8f0;
+            --text-muted: #94a3b8;
+            --border-color: rgba(148, 163, 184, 0.18);
+            --primary-rgb: 74, 137, 220;
+            --secondary-rgb: 150, 122, 220;
+            --accent-rgb: 59, 175, 218;
+            --positive-color: #43b581;
+            --neutral-color: #faa61a;
+            --negative-color: #f04747;
+            --owner-color: #ffd700;
+            --booster-color: #f47fff;
+            --rain-keeper: #8b5cf6;
+            --surface-shadow: 0 18px 50px rgba(0, 0, 0, 0.34);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            background:
+                radial-gradient(circle at top center, rgba(var(--secondary-rgb), 0.22), transparent 35%),
+                linear-gradient(180deg, #11182d 0%, #101729 52%, #0e1526 100%);
+            color: var(--text-light);
+            overflow-x: hidden;
+            position: relative;
+            padding: 24px;
+        }
+
+        .raindrops {
+            position: fixed;
+            inset: 0;
+            overflow: hidden;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .raindrop {
+            position: absolute;
+            width: 2px;
+            height: 24px;
+            background: linear-gradient(to bottom, transparent, rgba(var(--accent-rgb), 0.9));
+            border-radius: 999px;
+            animation: fall linear infinite;
+            will-change: transform;
+        }
+
+        @keyframes fall {
+            to {
+                transform: translateY(110vh);
+            }
+        }
+
+        .dashboard-shell {
+            max-width: 1520px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        .hero {
+            position: relative;
+            overflow: hidden;
+            border-radius: 28px;
+            border: 1px solid var(--border-color);
+            background:
+                linear-gradient(180deg, rgba(10, 15, 30, 0.2) 0%, rgba(16, 23, 41, 0.95) 58%),
+                {% if server.banner %}url('{{ server.banner }}') center/cover no-repeat{% else %}linear-gradient(135deg, rgba(var(--primary-rgb), 0.32), rgba(var(--secondary-rgb), 0.22)){% endif %};
+            box-shadow: var(--surface-shadow);
+            min-height: 360px;
+        }
+
+        .hero::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                linear-gradient(180deg, rgba(13, 19, 34, 0.15), rgba(13, 19, 34, 0.82)),
+                radial-gradient(circle at 18% 18%, rgba(var(--accent-rgb), 0.22), transparent 28%);
+            pointer-events: none;
+        }
+
+        .topbar {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            padding: 22px 24px 0;
+            gap: 16px;
+        }
+
+        .brand-chip,
+        .live-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: 14px;
+            background: rgba(7, 11, 24, 0.42);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(14px);
+            color: var(--text-light);
+            font-size: 0.92rem;
+            font-weight: 600;
+        }
+
+        .brand-chip i,
+        .live-chip i {
+            color: var(--accent);
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 1;
+            display: grid;
+            grid-template-columns: minmax(0, 1.65fr) minmax(360px, 0.95fr);
+            gap: 24px;
+            padding: 28px 24px 24px;
+            align-items: end;
+        }
+
+        .hero-main {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            min-width: 0;
+        }
+
+        .server-meta {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            margin-top: -12px;
+        }
+
+        .server-icon-wrap {
+            width: 92px;
+            height: 92px;
+            border-radius: 26px;
+            padding: 4px;
+            background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.95), rgba(var(--secondary-rgb), 0.95));
+            box-shadow: 0 16px 34px rgba(0, 0, 0, 0.35);
+            flex-shrink: 0;
+        }
+
+        .server-icon {
+            width: 100%;
+            height: 100%;
+            border-radius: 22px;
+            object-fit: cover;
+            display: block;
+        }
+
+        .eyebrow {
+            color: rgba(226, 232, 240, 0.82);
+            text-transform: uppercase;
+            letter-spacing: 0.18em;
+            font-size: 0.78rem;
+            font-weight: 700;
+        }
+
+        .server-title {
+            font-size: clamp(2.2rem,3vw,3.2rem);
+            line-height: 2.04;
+            font-weight: 800;
+            background: linear-gradient(90deg, #ffffff 0%, #b6d6ff 32%, #c5b8ff 68%, #f2d4ff 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .server-subtitle {
+            max-width: 760px;
+            color: rgba(226, 232, 240, 0.86);
+            font-size: 1rem;
+            line-height: 1.6;
+        }
+
+        .hero-notes {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .note-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            border-radius: 14px;
+            background: rgba(10, 15, 28, 0.44);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: var(--text-light);
+            font-size: 0.9rem;
+        }
+
+        .note-pill i {
+            color: var(--accent);
+        }
+
+        .hero-side {
+            background: rgba(12, 17, 31, 0.52);
+            backdrop-filter: blur(18px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 24px;
+            padding: 22px;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            min-width: 0;
+        }
+
+        .side-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .side-header h2 {
+            font-size: 1.08rem;
+            font-weight: 700;
+        }
+
+        .side-subtitle {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .search-container {
+            position: relative;
+        }
+
+        .search-icon {
+            position: absolute;
+            top: 50%;
+            left: 14px;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            pointer-events: none;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 14px 16px 14px 42px;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.06);
+            color: var(--text-light);
+            font-size: 0.96rem;
+            outline: none;
+        }
+
+        .search-input:focus {
+            border-color: rgba(var(--accent-rgb), 0.65);
+            box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.16);
+        }
+
+        .search-results {
+            position: absolute;
+            top: calc(100% + 10px);
+            left: 0;
+            right: 0;
+            display: none;
+            padding: 10px;
+            border-radius: 18px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(12, 17, 31, 0.96);
+            backdrop-filter: blur(18px);
+            box-shadow: 0 18px 40px rgba(0, 0, 0, 0.36);
+            max-height: 360px;
+            overflow-y: auto;
+            z-index: 10;
+        }
+
+        .filter-field {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-width: 0;
+        }
+
+        .filter-field label {
+            color: rgba(226, 232, 240, 0.78);
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+        }
+
+        .filter-select,
+        .filter-date {
+            width: 100%;
+            padding: 13px 14px;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.06);
+            color: var(--text-light);
+            font-size: 0.94rem;
+            outline: none;
+            color-scheme: dark;
+        }
+
+        .filter-select:focus {
+            border-color: rgba(var(--accent-rgb), 0.65);
+            box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.16);
+        }
+
+        .filter-select {
+            appearance: none;
+            -webkit-appearance: none;
+            background-image:
+                linear-gradient(45deg, transparent 50%, rgba(226, 232, 240, 0.9) 50%),
+                linear-gradient(135deg, rgba(226, 232, 240, 0.9) 50%, transparent 50%);
+            background-position:
+                calc(100% - 20px) calc(50% - 3px),
+                calc(100% - 14px) calc(50% - 3px);
+            background-size: 6px 6px, 6px 6px;
+            background-repeat: no-repeat;
+            padding-right: 36px;
+        }
+
+        .filter-select option {
+            background: #131b31;
+            color: var(--text-light);
+        }
+
+        .filter-actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .filter-apply,
+        .filter-reset {
+            padding: 10px 14px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.06);
+            color: var(--text-light);
+            font-size: 0.88rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+        }
+
+        .filter-apply {
+            background: rgba(var(--accent-rgb), 0.14);
+            border-color: rgba(var(--accent-rgb), 0.34);
+        }
+
+        .filter-apply:hover,
+        .filter-reset:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(var(--accent-rgb), 0.3);
+            transform: translateY(-1px);
+        }
+
+        .filter-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: rgba(var(--accent-rgb), 0.12);
+            border: 1px solid rgba(var(--accent-rgb), 0.32);
+            color: #cfe9ff;
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            white-space: nowrap;
+        }
+
+        .filter-badge i {
+            color: var(--accent);
+        }
+
+        .filter-target {
+            position: relative;
+        }
+
+        .filter-target.is-loading {
+            pointer-events: none;
+        }
+
+        .filter-target.is-loading::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            background: rgba(8, 13, 30, 0.62);
+            backdrop-filter: blur(6px);
+            z-index: 5;
+        }
+
+        .filter-target.is-loading::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 28px;
+            height: 28px;
+            margin: -14px 0 0 -14px;
+            border-radius: 50%;
+            border: 3px solid rgba(var(--accent-rgb), 0.18);
+            border-top-color: rgba(var(--accent-rgb), 0.96);
+            animation: filterSpin 0.8s linear infinite;
+            z-index: 6;
+        }
+
+        @keyframes filterSpin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .panel-grid {
+            display: grid;
+            gap: 22px;
+            margin-top: 24px;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            box-shadow: var(--surface-shadow);
+            padding: 24px;
+        }
+
+        .panel.filtered-panel {
+            border-color: rgba(var(--accent-rgb), 0.22);
+            box-shadow:
+                var(--surface-shadow),
+                0 0 0 1px rgba(var(--accent-rgb), 0.08) inset;
+        }
+
+        .section-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            gap: 16px;
+            margin-bottom: 18px;
+        }
+
+        .section-head h3 {
+            font-size: 1.5rem;
+            font-weight: 800;
+            line-height: 1.15;
+        }
+
+        .section-head p {
+            color: var(--text-muted);
+            font-size: 0.94rem;
+            line-height: 1.5;
+            margin-top: 6px;
+        }
+
+        .context-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .context-box,
+        .metric-box,
+        .submetric-box {
+            border-radius: 18px;
+            background: var(--box-bg);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 18px;
+            min-width: 0;
+        }
+
+        .context-label,
+        .metric-label,
+        .submetric-label {
+            color: rgba(226, 232, 240, 0.72);
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+            font-size: 0.74rem;
+            font-weight: 700;
+        }
+
+        .context-value {
+            margin-top: 10px;
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--text-light);
+        }
+
+        .context-meta {
+            margin-top: 8px;
+            color: var(--text-muted);
+            font-size: 0.88rem;
+            line-height: 1.5;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .metric-box {
+            position: relative;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.075);
+            min-height: 156px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .metric-box::before {
+            content: '';
+            position: absolute;
+            inset: 0 auto auto 0;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(90deg, rgba(var(--primary-rgb), 0.95), rgba(var(--secondary-rgb), 0.95));
+        }
+
+        .metric-box:hover,
+        .submetric-box:hover,
+        .list-row:hover,
+        .emoji-item:hover {
+            transform: translateY(-3px);
+            border-color: rgba(var(--accent-rgb), 0.4);
+            background: rgba(255, 255, 255, 0.095);
+        }
+
+        .metric-box,
+        .submetric-box,
+        .list-row,
+        .emoji-item {
+            transition: transform 0.22s ease, border-color 0.22s ease, background 0.22s ease;
+        }
+
+        .metric-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .metric-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 14px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(var(--accent-rgb), 0.14);
+            color: var(--accent);
+            font-size: 1.05rem;
+            flex-shrink: 0;
+        }
+
+        .metric-value {
+            margin-top: 18px;
+            font-size: clamp(1.8rem, 3vw, 2.8rem);
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        .metric-meta {
+            margin-top: 10px;
+            color: var(--text-muted);
+            font-size: 0.92rem;
+            line-height: 1.45;
+        }
+
+        .submetrics-grid {
+            display: grid;
+            grid-template-columns: repeat(6, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .submetric-value {
+            margin-top: 12px;
+            font-size: 1.55rem;
+            font-weight: 800;
+            line-height: 1.05;
+        }
+
+        .submetric-box.filtered {
+            position: relative;
+            border-color: rgba(var(--accent-rgb), 0.24);
+            background: rgba(var(--accent-rgb), 0.06);
+        }
+
+        .submetric-box.filtered::after {
+            content: '\f0b0';
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            color: rgba(var(--accent-rgb), 0.92);
+            font-size: 0.78rem;
+        }
+
+        .submetric-box.filtered.filter-target.is-loading::after {
+            content: '';
+            top: 50%;
+            right: auto;
+            left: 50%;
+            width: 28px;
+            height: 28px;
+            margin: -14px 0 0 -14px;
+            border-radius: 50%;
+            border: 3px solid rgba(var(--accent-rgb), 0.18);
+            border-top-color: rgba(var(--accent-rgb), 0.96);
+            animation: filterSpin 0.8s linear infinite;
+            font-size: 0;
+        }
+
+        .submetric-meta {
+            margin-top: 8px;
+            color: var(--text-muted);
+            font-size: 0.86rem;
+            line-height: 1.45;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.7fr) minmax(320px, 0.95fr);
+            gap: 22px;
+        }
+
+        .stack {
+            display: grid;
+            gap: 22px;
+        }
+
+        .chart-shell {
+            height: 400px;
+        }
+
+        .chart-shell.compact {
+            height: 320px;
+        }
+
+        .chart-shell canvas {
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        .list-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .mini-profile-link {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .list-row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 14px 16px;
+            border-radius: 18px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: var(--box-bg);
+            min-width: 0;
+        }
+
+        .row-rank {
+            width: 34px;
+            color: var(--text-muted);
+            font-weight: 700;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .row-avatar {
+            width: 46px;
+            height: 46px;
+            border-radius: 14px;
+            object-fit: cover;
+            flex-shrink: 0;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .row-text {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex: 1;
+        }
+
+        .row-title {
+            font-size: 0.98rem;
+            font-weight: 600;
+            color: var(--text-light);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .row-subtitle {
+            font-size: 0.86rem;
+            color: var(--text-muted);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .row-trailing {
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        .row-value {
+            font-size: 1rem;
+            font-weight: 700;
+        }
+
+        .row-meta {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .split-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            gap: 22px;
+        }
+
+        .sentiment-band {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+            margin-top: 18px;
+        }
+
+        .sentiment-box {
+            border-radius: 16px;
+            padding: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.05);
+            text-align: center;
+        }
+
+        .sentiment-box.positive {
+            background: rgba(67, 181, 129, 0.12);
+            border-color: rgba(67, 181, 129, 0.4);
+        }
+
+        .sentiment-box.neutral {
+            background: rgba(250, 166, 26, 0.12);
+            border-color: rgba(250, 166, 26, 0.36);
+        }
+
+        .sentiment-box.negative {
+            background: rgba(240, 71, 71, 0.12);
+            border-color: rgba(240, 71, 71, 0.36);
+        }
+
+        .sentiment-value {
+            margin-top: 8px;
+            font-size: 1.5rem;
+            font-weight: 800;
+        }
+
+        .sentiment-box.positive .sentiment-value { color: var(--positive-color); }
+        .sentiment-box.neutral .sentiment-value { color: var(--neutral-color); }
+        .sentiment-box.negative .sentiment-value { color: var(--negative-color); }
+
+        .emoji-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+            gap: 14px;
+        }
+
+        .emoji-item {
+            border-radius: 18px;
+            padding: 16px 12px;
+            background: var(--box-bg);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            text-align: center;
+        }
+
+        .emoji-visual {
+            width: 54px;
+            height: 54px;
+            margin: 0 auto 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.06);
+            font-size: 1.9rem;
+        }
+
+        .emoji-img {
+            width: 54px;
+            height: 54px;
+            object-fit: contain;
+        }
+
+        .emoji-name {
+            font-size: 0.84rem;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .emoji-count {
+            font-size: 1.05rem;
+            font-weight: 700;
+        }
+
+        .text-muted {
+            color: var(--text-muted);
+        }
+
+        .empty-state {
+            color: var(--text-muted);
+            font-size: 0.94rem;
+            text-align: center;
+            padding: 18px;
+        }
+
+        @media (max-width: 1260px) {
+            .hero-content,
+            .main-grid,
+            .split-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .metrics-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .submetrics-grid {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 900px) {
+            body {
+                padding: 16px;
+            }
+
+            .context-grid,
+            .metrics-grid,
+            .submetrics-grid,
+            .sentiment-band,
+            .filter-panel {
+                grid-template-columns: 1fr;
+            }
+
+            .topbar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .server-meta {
+                align-items: flex-start;
+            }
+
+            .server-icon-wrap {
+                width: 78px;
+                height: 78px;
+            }
+
+            .chart-shell {
+                height: 320px;
+            }
+
+            .chart-shell.compact {
+                height: 280px;
+            }
+
+            .panel {
+                padding: 18px;
+            }
+
+            .filter-panel {
+                display: flex;
+                align-items: flex-end;
+                gap: 14px;
+            }
+
+            .filter-field {
+                flex: 1;
+            }
+
+            .filter-actions-inline {
+                display: flex;
+                gap: 10px;
+                flex-shrink: 0;
+            }
+
+            .filter-actions-inline button {
+                height: 48px;
+                white-space: nowrap;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="raindrops" id="raindrops"></div>
+
+    <div class="dashboard-shell">
+        <section class="hero">
+            <div class="topbar">
+                <div class="live-chip"><i class="fas fa-wave-square"></i> Refreshes every 30 seconds</div>
+            </div>
+
+            <div class="hero-content">
+                <div class="hero-main">
+                    <div class="server-meta">
+                        <div class="server-icon-wrap">
+                            <img src="{{ server.icon }}" class="server-icon" alt="{{ server.name }}">
+                        </div>
+                        <div>
+                            <div class="eyebrow">Live Overview</div>
+                            <h1 class="server-title">{{ server.name }}</h1>
+                        </div>
+                    </div>
+
+                    <div class="hero-notes">
+                        <div class="note-pill" id="source-time-pill"><i class="fas fa-database"></i> Source data {{ updated_at_text }}</div>
+                        <div class="note-pill" id="processed-time-pill"><i class="fas fa-bolt"></i> Analytics processed {{ processed_at_text | default(updated_at_text) }}</div>
+                    </div>
+                </div>
+
+                <aside class="hero-side">
+                    <div>
+                        <div class="side-header">
+                            <h2>Member Search</h2>
+                            <span class="text-muted"></span>
+                        </div>
+                        <p class="side-subtitle">Search by display name, global name, username, or ID.</p>
+                    </div>
+
+                    <div class="search-container">
+                        <i class="fas fa-search search-icon"></i>
+                        <input type="text" id="member-search-input" class="search-input" placeholder="Search members...">
+                        <div id="search-results" class="search-results"></div>
+                    </div>
+
+                    <div class="filter-panel">
+                        <div class="filter-field">
+                            <label for="interval-select">Interval</label>
+                            <select id="interval-select" class="filter-select">
+                                <option value="daily" {% if filter_state and filter_state.interval == 'daily' %} selected {% endif %}> Daily </option>
+                                <option value="weekly" {% if filter_state and filter_state.interval == 'weekly' %} selected {% endif %}> Weekly </option>
+                                <option value="monthly" {% if filter_state and filter_state.interval == 'monthly' %} selected {% endif %}> Monthly </option>
+                                <option value="lifetime" {% if not filter_state or filter_state.interval == 'lifetime' %} selected {% endif %}> Lifetime </option>
+                            </select>
+                        </div>
+
+                        <div class="filter-actions-inline">
+                            <button type="button" id="apply-filter-btn" class="filter-apply">
+                                Apply Filter
+                            </button>
+
+                            <button type="button" id="reset-filter-btn" class="filter-reset">
+                                Reset Filter
+                            </button>
+                        </div>
+                    </div>
+                </aside>
+            </div>
+        </section>
+
+        <div class="panel-grid">
+            <section class="panel">
+                <div class="section-head">
+                    <div>
+                        <h3>Server Snapshot</h3>
+                    </div>
+                </div>
+
+                {% set insights = activity_insights | default({}) %}
+                <div class="context-grid">
+                    <div class="context-box">
+                        <div class="context-label">Window</div>
+                        <div class="context-value" id="window-active-days">Last {{ insights.active_days | default(0) }} active day{{ '' if insights.active_days | default(0) == 1 else 's' }}</div>
+                        <div class="context-meta">Rendered from the current analytics snapshot.</div>
+                    </div>
+                    <div class="context-box">
+                        <div class="context-label">Source Data</div>
+                        <div class="context-value" id="updated-time-context">{{ updated_at_text }}</div>
+                        <div class="context-meta">Based on the latest server data import.</div>
+                    </div>
+                    <div class="context-box">
+                        <div class="context-label">Window</div>
+                        <div class="context-value" id="filter-range-context">{{ filter_state.label if filter_state else 'Lifetime' }}</div>
+                        <div class="context-meta">Applied only to the marked analytics cards below.</div>
+                    </div>
+                </div>
+
+                <div class="metrics-grid" style="margin-top: 18px;">
+                    <div class="metric-box">
+                        <div class="metric-top">
+                            <div class="metric-label">Total Members</div>
+                            <div class="metric-icon"><i class="fas fa-users"></i></div>
+                        </div>
+                        <div>
+                            <div class="metric-value" id="total-users-kpi">{{ "{:,}".format(total_users) if total_users is not none else 'N/A' }}</div>
+                            <div class="metric-meta">Current server population from live guild metadata.</div>
+                        </div>
+                    </div>
+                    <div class="metric-box">
+                        <div class="metric-top">
+                            <div class="metric-label">Active Members</div>
+                            <div class="metric-icon"><i class="fas fa-user-check"></i></div>
+                        </div>
+                        <div>
+                            <div class="metric-value" id="active-users-kpi">{{ "{:,}".format(active_users) }}</div>
+                            <div class="metric-meta">Members currently counted as active in server metadata.</div>
+                        </div>
+                    </div>
+                    <div class="metric-box">
+                        <div class="metric-top">
+                            <div class="metric-label">Rain Keepers</div>
+                            <div class="metric-icon"><i class="fas fa-cloud-sun-rain"></i></div>
+                        </div>
+                        <div>
+                            <div class="metric-value" id="rain-keepers-kpi">{{ "{:,}".format(rain_keepers) }}</div>
+                            <div class="metric-meta">Members currently holding the Rain Keeper role.</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel filtered-panel filter-target" data-filtered-target>
+                <div class="section-head">
+                    <div>
+                        <h3>Filtered Window</h3>
+                    </div>
+                    <span class="filter-badge"><i class="fas fa-filter"></i> Filtered</span>
+                </div>
+
+                <div class="submetrics-grid">
+                    <div class="submetric-box filtered filter-target" data-filtered-target>
+                        <div class="submetric-label">Total Messages</div>
+                        <div class="submetric-value" id="filtered-messages">{{ "{:,}".format(filtered_window.messages) if filtered_window else '0' }}</div>
+                        <div class="submetric-meta">Messages inside the selected range.</div>
+                    </div>
+                    <div class="submetric-box filtered filter-target" data-filtered-target>
+                        <div class="submetric-label">Streak Members</div>
+                        <div class="submetric-value" id="filtered-streak-members">{{ "{:,}".format(filtered_window.streak_members_count) if filtered_window else '0' }}</div>
+                        <div class="submetric-meta">Members with streak data in this window.</div>
+                    </div>
+                    <div class="submetric-box filtered filter-target" data-filtered-target id="daily-average-card">
+                        <div class="submetric-label">Daily Average</div>
+                        <div class="submetric-value" id="daily-average">{{ "{:,.1f}".format(insights.daily_average | default(0)) }}</div>
+                        <div class="submetric-meta" id="active-days">{{ "{:,}".format(insights.active_days | default(0)) }} active days tracked</div>
+                    </div>
+                    <div class="submetric-box filtered filter-target" data-filtered-target id="busiest-day-card">
+                        <div class="submetric-label">Busiest Day</div>
+                        <div class="submetric-value" id="busiest-day-messages">{{ "{:,}".format(insights.busiest_day_messages | default(0)) }}</div>
+                        <div class="submetric-meta" id="busiest-day-label">{{ insights.busiest_day_label | default('N/A') }}</div>
+                    </div>
+                    <div class="submetric-box filtered filter-target" data-filtered-target>
+                        <div class="submetric-label">Peak Hour</div>
+                        <div class="submetric-value" id="most-active-hour-label">{{ insights.most_active_hour_label | default('N/A') }}</div>
+                        <div class="submetric-meta" id="most-active-hour-messages">{{ "{:,}".format(insights.most_active_hour_messages | default(0)) }} messages</div>
+                    </div>
+                    <div class="submetric-box filtered filter-target" data-filtered-target>
+                        <div class="submetric-label">Active Channels</div>
+                        <div class="submetric-value" id="channel-count">{{ "{:,}".format(insights.channel_count | default(0)) }}</div>
+                        <div class="submetric-meta">Channels contributing to tracked chat volume.</div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="main-grid">
+                <div class="stack">
+                    <div class="panel filter-target" data-filtered-target>
+                        <div class="section-head">
+                            <div>
+                                <h3>How activity is moving</h3>
+                                <p>Message volume over time, with the same live refresh behavior as the old dashboard.</p>
+                            </div>
+                            <span class="filter-badge"><i class="fas fa-filter"></i> Filtered</span>
+                        </div>
+                        <div class="chart-shell">
+                            <canvas id="timeChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="panel filter-target" data-filtered-target>
+                        <div class="section-head">
+                            <div>
+                                <h3>Channel distribution</h3>
+                                <p>See where the server spends most of its time right now.</p>
+                            </div>
+                            <span class="filter-badge"><i class="fas fa-filter"></i> Filtered</span>
+                        </div>
+                        <div id="channel-list" class="list-stack">
+                            {% for channel in channel_activity %}
+                            <div class="list-row">
+                                <div class="row-text">
+                                    <div class="row-title">#{{ channel.channel }}</div>
+                                </div>
+                                <div class="row-trailing">
+                                    <div class="row-value">{{ "{:,}".format(channel.count) }}</div>
+                                    <div class="row-meta">{{ "{:.1f}%".format((channel.count / messages) * 100) if messages > 0 else '0.0%' }}</div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                            {% if not channel_activity %}
+                            <p class="empty-state">No channel activity available yet.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stack">
+                    <div class="panel filter-target" data-filtered-target>
+                        <div class="section-head">
+                            <div>
+                                <h3>Top members</h3>
+                            </div>
+                            <span class="filter-badge"><i class="fas fa-filter"></i> Filtered</span>
+                        </div>
+                        <div id="top-members-list" class="list-stack">
+                            {% for user in top_users_data %}
+                            <a href="/users/{{ user.user_id }}" class="mini-profile-link">
+                                <div class="list-row">
+                                    <div class="row-rank">{{ loop.index }}</div>
+                                    <img src="{{ user.avatar }}" class="row-avatar" alt="{{ user.name }}">
+                                    <div class="row-text">
+                                        <div class="row-title">{{ user.name }}</div>
+                                        <div class="row-subtitle">{{ "{:,}".format(user.messages) }} messages</div>
+                                    </div>
+                                </div>
+                            </a>
+                            {% endfor %}
+                            {% if not top_users_data %}
+                            <p class="empty-state">No top members found.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="panel filter-target" data-filtered-target>
+                        <div class="section-head">
+                            <div>
+                                <h3>Server boosters</h3>
+                                <p>Current booster list with relative boost age.</p>
+                            </div>
+                        </div>
+                        <div id="booster-list" class="list-stack">
+                            {% for booster in boosters %}
+                            <a href="/users/{{ booster.id }}" class="mini-profile-link">
+                                <div class="list-row">
+                                    <img src="{{ booster.avatar }}" class="row-avatar" alt="{{ booster.name }}">
+                                    <div class="row-text">
+                                        <div class="row-title">{{ booster.name }}</div>
+                                        <div class="row-subtitle">{% if booster.boosted_since %}Boosting since {{ booster.boosted_since | format_timestamp_relative }}{% else %}Booster{% endif %}</div>
+                                    </div>
+                                </div>
+                            </a>
+                            {% endfor %}
+                            {% if not boosters %}
+                            <p class="empty-state">No booster data available.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="split-grid">
+                <div class="stack">
+                    <div class="panel filter-target" data-filtered-target>
+                        <div class="section-head">
+                            <div>
+                                <h3>Peak hours</h3>
+                                <p>Aggregated message volume by hour of day.</p>
+                            </div>
+                            <span class="filter-badge"><i class="fas fa-filter"></i> Filtered</span>
+                        </div>
+                        <div class="chart-shell compact">
+                            <canvas id="hourChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="panel filter-target" data-filtered-target>
+                        <div class="section-head">
+                            <div>
+                                <h3>Member streaks</h3>
+                                <p>Current and longest streaks for the most persistent members.</p>
+                            </div>
+                            <span class="filter-badge"><i class="fas fa-filter"></i> Filtered</span>
+                        </div>
+                        <div id="member-streaks-list" class="list-stack">
+                            {% for user in active_streaks_data %}
+                            <a href="/users/{{ user.user_id }}" class="mini-profile-link">
+                                <div class="list-row">
+                                    <img src="{{ user.avatar }}" class="row-avatar" alt="{{ user.display_name }}">
+                                    <div class="row-text">
+                                        <div class="row-title">{{ user.display_name }}</div>
+                                        <div class="row-subtitle">
+                                            {% if user.current_streak > 0 %}{{ user.current_streak }} day{{ '' if user.current_streak == 1 else 's' }} current streak{% else %}No current streak{% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="row-trailing">
+                                        <div class="row-value">{{ user.longest_streak }}</div>
+                                        <div class="row-meta">longest</div>
+                                    </div>
+                                </div>
+                            </a>
+                            {% endfor %}
+                            {% if not active_streaks_data %}
+                            <p class="empty-state">No streak data available yet.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stack">
+                    <div class="panel">
+                        <div class="section-head">
+                            <div>
+                                <h3>Community sentiment</h3>
+                                <p>Rolling sentiment trend plus a quick positive, neutral, and negative split.</p>
+                            </div>
+                            <span class="filter-badge"><i class="fas fa-filter"></i> Filtered</span>
+                        </div>
+                        <div class="chart-shell compact">
+                            <canvas id="sentimentChart"></canvas>
+                        </div>
+                        <div class="sentiment-band">
+                            <div class="sentiment-box positive">
+                                <div class="submetric-label">Positive</div>
+                                <div class="sentiment-value" id="positive-score">0%</div>
+                            </div>
+                            <div class="sentiment-box neutral">
+                                <div class="submetric-label">Neutral</div>
+                                <div class="sentiment-value" id="neutral-score">0%</div>
+                            </div>
+                            <div class="sentiment-box negative">
+                                <div class="submetric-label">Negative</div>
+                                <div class="sentiment-value" id="negative-score">0%</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="panel">
+                        <div class="section-head">
+                            <div>
+                                <h3>Top emojis</h3>
+                                <p>Frequently used custom and Unicode emoji signals.</p>
+                            </div>
+                        </div>
+                        <div id="emoji-grid" class="emoji-grid">
+                            {% for emoji in top_emojis %}
+                            <div class="emoji-item">
+                                <div class="emoji-visual">
+                                    {% if emoji.is_unicode %}
+                                    <span>{{ emoji.name }}</span>
+                                    {% elif emoji.url %}
+                                    <img src="{{ emoji.url }}" class="emoji-img" alt="{{ emoji.name }}">
+                                    {% endif %}
+                                </div>
+                                <div class="emoji-name">{{ emoji.name }}</div>
+                                <div class="emoji-count">{{ "{:,}".format(emoji.count) }}</div>
+                            </div>
+                            {% endfor %}
+                            {% if not top_emojis %}
+                            <p class="empty-state">No emoji data available yet.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script>
+    function createRaindrops() {
+        const container = document.getElementById('raindrops');
+        const dropsCount = window.innerWidth < 768 ? 45 : 80;
+        const screenHeight = window.innerHeight;
+
+        for (let i = 0; i < dropsCount; i++) {
+            const drop = document.createElement('div');
+            drop.className = 'raindrop';
+            drop.style.left = `${Math.random() * 100}%`;
+            drop.style.height = `${12 + Math.random() * 22}px`;
+            drop.style.animationDuration = `${0.7 + Math.random() * 1.2}s`;
+            drop.style.animationDelay = `${Math.random() * 2.2}s`;
+            drop.style.opacity = `${0.2 + Math.random() * 0.45}`;
+            drop.style.transform = `translateY(${-screenHeight * Math.random()}px)`;
+            container.appendChild(drop);
+        }
+    }
+
+    function formatNumber(value) {
+        const number = Number(value || 0);
+        if (!Number.isFinite(number)) {
+            return '0';
+        }
+        return number.toLocaleString();
+    }
+
+    function formatTimeAgo(dateString) {
+        if (!dateString) {
+            return 'N/A';
+        }
+
+        let parsedDateString = dateString;
+        const microsecondRegex = /\.\d{1,6}(?=[Z+-])/;
+        if (microsecondRegex.test(dateString)) {
+            parsedDateString = dateString.replace(microsecondRegex, '');
+        }
+
+        const now = new Date();
+        const past = new Date(parsedDateString);
+        if (Number.isNaN(past.getTime())) {
+            return 'Invalid Date';
+        }
+
+        const seconds = Math.floor((now - past) / 1000);
+        const minutes = Math.floor(seconds / 60);
+        const hours = Math.floor(minutes / 60);
+        const days = Math.floor(hours / 24);
+        const months = Math.floor(days / 30);
+        const years = Math.floor(days / 365);
+
+        if (seconds < 60) return seconds === 0 ? 'just now' : `${seconds} secs ago`;
+        if (minutes < 60) return `${minutes} mins ago`;
+        if (hours < 24) return `${hours} hours ago`;
+        if (days < 30) return `${days} days ago`;
+        if (months < 12) return `${months} months ago`;
+        return `${years} years ago`;
+    }
+
+    function calculateSentimentBreakdown(sentimentData) {
+        let positiveCount = 0;
+        let neutralCount = 0;
+        let negativeCount = 0;
+
+        sentimentData.forEach((item) => {
+            if (item.sentiment > 0.05) {
+                positiveCount += 1;
+            } else if (item.sentiment < -0.05) {
+                negativeCount += 1;
+            } else {
+                neutralCount += 1;
+            }
+        });
+
+        const total = positiveCount + neutralCount + negativeCount;
+        const positiveText = total ? `${((positiveCount / total) * 100).toFixed(1)}%` : '0%';
+        const neutralText = total ? `${((neutralCount / total) * 100).toFixed(1)}%` : '0%';
+        const negativeText = total ? `${((negativeCount / total) * 100).toFixed(1)}%` : '0%';
+
+        document.getElementById('positive-score').textContent = positiveText;
+        document.getElementById('neutral-score').textContent = neutralText;
+        document.getElementById('negative-score').textContent = negativeText;
+    }
+
+    function updateList(containerId, items, renderer, emptyText) {
+        const container = document.getElementById(containerId);
+        container.innerHTML = '';
+
+        if (items && items.length) {
+            items.forEach((item, index) => {
+                container.insertAdjacentHTML('beforeend', renderer(item, index));
+            });
+            return;
+        }
+
+        container.innerHTML = `<p class="empty-state">${emptyText}</p>`;
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        createRaindrops();
+
+        const rootStyles = getComputedStyle(document.documentElement);
+        const primaryColor = rootStyles.getPropertyValue('--primary').trim();
+        const accentRgb = rootStyles.getPropertyValue('--accent-rgb').trim();
+        const panelBg = rootStyles.getPropertyValue('--panel-bg').trim();
+        const textLightColor = rootStyles.getPropertyValue('--text-light').trim();
+        const textMutedColor = rootStyles.getPropertyValue('--text-muted').trim();
+        const borderColor = rootStyles.getPropertyValue('--border-color').trim();
+
+        const commonChartOptions = {
+            maintainAspectRatio: false,
+            responsive: true,
+            plugins: {
+                legend: {
+                    labels: {
+                        color: textLightColor,
+                        font: { size: 13, weight: '600' }
+                    }
+                },
+                tooltip: {
+                    backgroundColor: panelBg,
+                    titleColor: textLightColor,
+                    bodyColor: textLightColor,
+                    borderColor: borderColor,
+                    borderWidth: 1,
+                    cornerRadius: 10,
+                    padding: 12
+                }
+            },
+            scales: {
+                x: {
+                    grid: { color: 'rgba(148, 163, 184, 0.10)', drawBorder: false },
+                    ticks: { color: textMutedColor }
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(148, 163, 184, 0.10)', drawBorder: false },
+                    ticks: { color: textMutedColor }
+                }
+            }
+        };
+
+        const initialActivity = {{ activity | tojson | safe }};
+        const initialHeatmap = {{ heatmap | tojson | safe }};
+        const initialSentiment = {{ sentiment_data | tojson | safe }};
+        calculateSentimentBreakdown(initialSentiment);
+
+        const timeChart = new Chart(document.getElementById('timeChart').getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: initialActivity.map((item) => new Date(item.date).toLocaleDateString()),
+                datasets: [{
+                    label: 'Messages',
+                    data: initialActivity.map((item) => item.messages),
+                    borderColor: primaryColor,
+                    backgroundColor: `rgba(${accentRgb}, 0.22)`,
+                    fill: true,
+                    tension: 0.36,
+                    pointRadius: 3,
+                    pointHoverRadius: 5,
+                    pointBackgroundColor: primaryColor
+                }]
+            },
+            options: commonChartOptions
+        });
+
+        const initialHoursData = initialHeatmap.reduce((accumulator, day) => {
+            day.forEach((count, hour) => {
+                accumulator[hour] = (accumulator[hour] || 0) + count;
+            });
+            return accumulator;
+        }, new Array(24).fill(0));
+
+        const hourChart = new Chart(document.getElementById('hourChart').getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: Array.from({ length: 24 }, (_, hour) => `${hour}:00`),
+                datasets: [{
+                    label: 'Messages',
+                    data: initialHoursData,
+                    backgroundColor: `rgba(${accentRgb}, 0.82)`,
+                    borderRadius: 8
+                }]
+            },
+            options: commonChartOptions
+        });
+
+        const sentimentChart = new Chart(document.getElementById('sentimentChart').getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: initialSentiment.map((item) => new Date(item.date).toLocaleDateString()),
+                datasets: [{
+                    label: 'Sentiment Score',
+                    data: initialSentiment.map((item) => item.sentiment),
+                    borderColor: `rgb(${accentRgb})`,
+                    backgroundColor: `rgba(${accentRgb}, 0.18)`,
+                    fill: true,
+                    tension: 0.34,
+                    pointRadius: 3,
+                    pointHoverRadius: 5
+                }]
+            },
+            options: commonChartOptions
+        });
+
+        function applyActivityInsights(insights) {
+            const isDaily = intervalSelect.value === 'daily';
+            const activeDays = Number(insights.active_days || 0);
+            const filterText = document.getElementById('filter-range-context')?.textContent?.trim() || 'Current window';
+            document.getElementById('daily-average-card').style.display = isDaily ? 'none' : '';
+            document.getElementById('busiest-day-card').style.display = isDaily ? 'none' : '';
+            document.getElementById('daily-average').textContent = Number(insights.daily_average || 0).toFixed(1);
+            document.getElementById('active-days').textContent = `${formatNumber(activeDays)} active days tracked`;
+            document.getElementById('window-active-days').textContent = `${formatNumber(activeDays)} active day${activeDays === 1 ? '' : 's'}`;
+            document.getElementById('busiest-day-messages').textContent = formatNumber(insights.busiest_day_messages || 0);
+            document.getElementById('busiest-day-label').textContent = insights.busiest_day_label || 'N/A';
+            document.getElementById('most-active-hour-label').textContent = insights.most_active_hour_label || 'N/A';
+            document.getElementById('most-active-hour-messages').textContent = `${formatNumber(insights.most_active_hour_messages || 0)} messages`;
+            document.getElementById('channel-count').textContent = formatNumber(insights.channel_count || 0);
+        }
+
+        function applyFilteredWindow(windowData) {
+            document.getElementById('filtered-messages').textContent = formatNumber(windowData.messages || 0);
+            document.getElementById('filtered-streak-members').textContent = formatNumber(windowData.streak_members_count || 0);
+        }
+
+        let dashboardFetchController = null;
+        let dashboardRefreshTimer = null;
+        let dashboardRequestVersion = 0;
+
+        function scheduleDashboardRefresh() {
+            if (dashboardRefreshTimer) {
+                clearTimeout(dashboardRefreshTimer);
+            }
+            dashboardRefreshTimer = setTimeout(() => updateDashboard(false), 30000);
+        }
+
+        function updateDashboard(showLoading = false) {
+            const queryString = getFilterQueryString();
+            const requestVersion = ++dashboardRequestVersion;
+            if (dashboardFetchController) {
+                dashboardFetchController.abort();
+            }
+            dashboardFetchController = new AbortController();
+            if (showLoading) {
+                setFilteredLoading(true);
+            }
+
+            fetch(`/api/data?${queryString}`, { signal: dashboardFetchController.signal })
+                .then((response) => response.json())
+                .then((data) => {
+                    if (requestVersion !== dashboardRequestVersion) {
+                        return;
+                    }
+                    document.getElementById('total-users-kpi').textContent = data.total_users !== null ? formatNumber(data.total_users) : 'N/A';
+                    document.getElementById('active-users-kpi').textContent = formatNumber(data.active_users);
+                    document.getElementById('rain-keepers-kpi').textContent = formatNumber(data.rain_keepers);
+                    document.getElementById('source-time-pill').innerHTML = `<i class="fas fa-database"></i> Source data ${data.updated_at_text}`;
+                    document.getElementById('updated-time-context').textContent = data.updated_at_text;
+
+                    if (data.last_processed_at) {
+                        const processedText = formatTimeAgo(data.last_processed_at);
+                        document.getElementById('processed-time-pill').innerHTML = `<i class="fas fa-bolt"></i> Analytics processed ${processedText}`;
+                    }
+
+                    if (data.filter_state) {
+                        intervalSelect.value = data.filter_state.interval || intervalSelect.value;
+                        document.getElementById('filter-range-context').textContent = data.filter_state.label || '';
+                    }
+
+                    applyActivityInsights(data.activity_insights || {});
+                    applyFilteredWindow(data.filtered_window || {});
+
+                    timeChart.data.labels = data.activity.map((item) => new Date(item.date).toLocaleDateString());
+                    timeChart.data.datasets[0].data = data.activity.map((item) => item.messages);
+                    timeChart.update();
+
+                    const nextHoursData = data.heatmap.reduce((accumulator, day) => {
+                        day.forEach((count, hour) => {
+                            accumulator[hour] = (accumulator[hour] || 0) + count;
+                        });
+                        return accumulator;
+                    }, new Array(24).fill(0));
+                    hourChart.data.datasets[0].data = nextHoursData;
+                    hourChart.update();
+
+                    sentimentChart.data.labels = data.sentiment_data.map((item) => new Date(item.date).toLocaleDateString());
+                    sentimentChart.data.datasets[0].data = data.sentiment_data.map((item) => item.sentiment);
+                    sentimentChart.update();
+                    calculateSentimentBreakdown(data.sentiment_data || []);
+
+                    updateList('top-members-list', data.top_users_data, (item, index) => `
+                        <a href="/users/${item.user_id}" class="mini-profile-link">
+                            <div class="list-row">
+                                <div class="row-rank">${index + 1}</div>
+                                <img src="${item.avatar}" class="row-avatar" alt="${item.name}">
+                                <div class="row-text">
+                                    <div class="row-title">${item.name}</div>
+                                    <div class="row-subtitle">${formatNumber(item.messages)} messages</div>
+                                </div>
+                            </div>
+                        </a>
+                    `, 'No top members found.');
+
+                    updateList('booster-list', data.boosters, (item) => `
+                        <a href="/users/${item.id}" class="mini-profile-link">
+                            <div class="list-row">
+                                <img src="${item.avatar}" class="row-avatar" alt="${item.name}">
+                                <div class="row-text">
+                                    <div class="row-title">${item.name}</div>
+                                    <div class="row-subtitle">${item.boosted_since ? `Boosting since ${formatTimeAgo(item.boosted_since)}` : 'Booster'}</div>
+                                </div>
+                            </div>
+                        </a>
+                    `, 'No booster data available.');
+
+                    updateList('channel-list', data.channel_activity, (item) => {
+                        const filteredMessages = data.filtered_window && data.filtered_window.messages ? data.filtered_window.messages : 0;
+                        const percentage = filteredMessages > 0 ? ((item.count / filteredMessages) * 100).toFixed(1) : '0.0';
+                        return `
+                            <div class="list-row">
+                                <div class="row-text">
+                                    <div class="row-title">#${item.channel}</div>
+                                </div>
+                                <div class="row-trailing">
+                                    <div class="row-value">${formatNumber(item.count)}</div>
+                                    <div class="row-meta">${percentage}%</div>
+                                </div>
+                            </div>
+                        `;
+                    }, 'No channel activity available yet.');
+
+                    updateList('member-streaks-list', data.active_streaks_data, (user) => `
+                        <a href="/users/${user.user_id}" class="mini-profile-link">
+                            <div class="list-row">
+                                <img src="${user.avatar}" class="row-avatar" alt="${user.display_name}">
+                                <div class="row-text">
+                                    <div class="row-title">${user.display_name}</div>
+                                    <div class="row-subtitle">${user.current_streak > 0 ? `${user.current_streak} day${user.current_streak !== 1 ? 's' : ''} current streak` : 'No current streak'}</div>
+                                </div>
+                                <div class="row-trailing">
+                                    <div class="row-value">${formatNumber(user.longest_streak)}</div>
+                                    <div class="row-meta">longest</div>
+                                </div>
+                            </div>
+                        </a>
+                    `, 'No streak data available yet.');
+
+                    updateList('emoji-grid', data.top_emojis, (item) => `
+                        <div class="emoji-item">
+                            <div class="emoji-visual">
+                                ${item.is_unicode ? `<span>${item.name}</span>` : `<img src="${item.url}" class="emoji-img" alt="${item.name}">`}
+                            </div>
+                            <div class="emoji-name">${item.name}</div>
+                            <div class="emoji-count">${formatNumber(item.count)}</div>
+                        </div>
+                    `, 'No emoji data available yet.');
+                })
+                .catch((error) => {
+                    if (error.name !== 'AbortError') {
+                        console.error('Error fetching data:', error);
+                    }
+                })
+                .finally(() => {
+                    if (requestVersion !== dashboardRequestVersion) {
+                        return;
+                    }
+                    dashboardFetchController = null;
+                    if (showLoading) {
+                        setFilteredLoading(false);
+                    }
+                    scheduleDashboardRefresh();
+                });
+        }
+
+        const searchInput = document.getElementById('member-search-input');
+        const searchResultsDiv = document.getElementById('search-results');
+        const intervalSelect = document.getElementById('interval-select');
+        const applyFilterButton = document.getElementById('apply-filter-btn');
+        const resetFilterButton = document.getElementById('reset-filter-btn');
+        const filteredTargets = Array.from(document.querySelectorAll('[data-filtered-target]'));
+        let searchTimeout = null;
+        const defaultFilterState = {
+            interval: 'lifetime'
+        };
+
+        function setFilteredLoading(isLoading) {
+            filteredTargets.forEach((element) => {
+                element.classList.toggle('is-loading', isLoading);
+            });
+        }
+
+        function getFilterQueryString() {
+            const params = new URLSearchParams();
+            params.set('interval', intervalSelect.value || 'lifetime');
+            return params.toString();
+        }
+
+        function syncFilterUrl() {
+            const query = getFilterQueryString();
+            const nextUrl = `${window.location.pathname}?${query}`;
+            window.history.replaceState({}, '', nextUrl);
+        }
+
+        function applySelectedFilter() {
+            syncFilterUrl();
+            updateDashboard(true);
+        }
+
+        function resetFilter() {
+            intervalSelect.value = defaultFilterState.interval || 'lifetime';
+            applySelectedFilter();
+        }
+
+        searchInput.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            const query = this.value.trim();
+
+            if (query.length === 0) {
+                searchResultsDiv.style.display = 'none';
+                searchResultsDiv.innerHTML = '';
+                return;
+            }
+
+            searchTimeout = setTimeout(() => {
+                fetch(`/api/members/search?q=${encodeURIComponent(query)}`)
+                    .then((response) => response.json())
+                    .then((data) => {
+                        searchResultsDiv.innerHTML = '';
+                        if (data.length > 0) {
+                            data.forEach((member) => {
+                                const userItemHtml = `
+                                    <a href="/users/${member.id}" class="mini-profile-link">
+                                        <div class="list-row">
+                                            <img src="${member.avatar}" class="row-avatar" alt="${member.display_name || member.name}">
+                                            <div class="row-text">
+                                                <div class="row-title">${member.display_name || member.name}</div>
+                                                <div class="row-subtitle">${member.global_name ? `@${member.global_name}` : ''}</div>
+                                            </div>
+                                        </div>
+                                    </a>
+                                `;
+                                searchResultsDiv.insertAdjacentHTML('beforeend', userItemHtml);
+                            });
+                            searchResultsDiv.style.display = 'block';
+                        } else {
+                            searchResultsDiv.innerHTML = '<p class="empty-state">No members found.</p>';
+                            searchResultsDiv.style.display = 'block';
+                        }
+                    })
+                    .catch((error) => {
+                        console.error('Error fetching search results:', error);
+                        searchResultsDiv.innerHTML = '<p class="empty-state">Error searching members.</p>';
+                        searchResultsDiv.style.display = 'block';
+                    });
+            }, 300);
+        });
+
+        document.addEventListener('click', function(event) {
+            if (!searchInput.contains(event.target) && !searchResultsDiv.contains(event.target)) {
+                searchResultsDiv.style.display = 'none';
+            }
+        });
+
+        searchResultsDiv.addEventListener('click', function(event) {
+            event.stopPropagation();
+        });
+
+        applyFilterButton.addEventListener('click', applySelectedFilter);
+        resetFilterButton.addEventListener('click', resetFilter);
+        updateDashboard(true);
+    });
+    </script>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7740246956515737" crossorigin="anonymous"></script>
+    <ins class="adsbygoogle"
+        style="display:block"
+        data-ad-client="ca-pub-7740246956515737"
+        data-ad-slot="9686471023"
+        data-ad-format="auto"
+        data-full-width-responsive="true"></ins>
+    <script>
+        (adsbygoogle = window.adsbygoogle || []).push({});
+    </script>
+</body>
+</html>

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-6NJBX4DMFQ"></script>
+    <meta name="google-adsense-account" content="ca-pub-7740246956515737">
+    <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-6NJBX4DMFQ');
+    </script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" href="{{ icon }}" type="image/png">
+    <title>403 Forbidden</title>
+    <style>
+        :root {
+            --primary: #4a89dc;
+            --secondary: #967adc;
+            --accent: #f04747;
+            --dark-bg: #0f172a;
+            --card-bg: rgba(20, 27, 49, 0.9);
+            --text-light: #e2e8f0;
+            --text-muted: #94a3b8;
+            --border-color: rgba(148, 163, 184, 0.18);
+            --primary-rgb: 74, 137, 220;
+            --secondary-rgb: 150, 122, 220;
+            --accent-rgb: 240, 71, 71;
+            --surface-shadow: 0 18px 50px rgba(0, 0, 0, 0.34);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background:
+                radial-gradient(circle at top center, rgba(var(--secondary-rgb), 0.18), transparent 35%),
+                linear-gradient(180deg, #11182d 0%, #101729 52%, #0e1526 100%);
+            color: var(--text-light);
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            /* Use the 'banner' variable for the background image */
+            background-image: url("{{ banner }}");
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background:
+                linear-gradient(180deg, rgba(13, 19, 34, 0.18), rgba(13, 19, 34, 0.86)),
+                radial-gradient(circle at 18% 18%, rgba(var(--accent-rgb), 0.16), transparent 30%);
+            z-index: -1;
+        }
+
+        .error-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 20px;
+            width: 100%;
+            max-width: 500px;
+            background: var(--card-bg);
+            backdrop-filter: blur(18px);
+            border-radius: 24px;
+            padding: 40px;
+            box-shadow: var(--surface-shadow);
+            border: 1px solid var(--border-color);
+        }
+
+        h1 {
+            font-size: 64px;
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: 10px;
+        }
+
+        p {
+            font-size: 18px;
+            color: var(--text-muted);
+            margin-bottom: 25px;
+        }
+
+        a.btn-primary {
+            display: inline-block;
+            background: linear-gradient(135deg, var(--accent), #ff7b72);
+            color: var(--text-light);
+            padding: 12px 25px;
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            box-shadow: 0 12px 28px rgba(240, 71, 71, 0.28);
+        }
+
+        a.btn-primary:hover {
+            background-color: #c0392b;
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <div class="error-container">
+        <h1>403</h1>
+        <p>You do not have permission to view this page.</p>
+        <a href="/" class="btn-primary">Return to the homepage</a>
+    </div>
+</body>
+</html>
