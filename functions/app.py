@@ -351,7 +351,12 @@ def finalize_filtered_dashboard_stats(filtered_stats, filters):
     return filtered_stats
 
 def create_app():
-    app = Quart(__name__, template_folder='../templates')
+    app = Quart(
+        __name__,
+        template_folder="../templates",
+        static_folder="../static",
+        static_url_path="/static",
+    )
 
     # --- Jinja Custom Filters (Unchanged) ---
     def hex_to_rgb(hex_color):
@@ -811,7 +816,7 @@ def create_app():
     async def forbidden_page(e):
         server_info = await load_server_info_only() # Optimized
         icon = server_info.get('icon')
-        banner = server_info.get('banner', '/static/banner.png') 
+        banner = server_info.get('banner', '/static/banner.gif') 
         return await render_template('403.html', icon=icon, banner=banner), 403
 
     @app.errorhandler(404)

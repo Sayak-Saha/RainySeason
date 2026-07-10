@@ -107,8 +107,12 @@
             border-radius: 28px;
             border: 1px solid var(--border-color);
             background:
-                linear-gradient(180deg, rgba(10, 15, 30, 0.2) 0%, rgba(16, 23, 41, 0.95) 58%),
-                {% if server.banner %}url('{{ server.banner }}') center/cover no-repeat{% else %}linear-gradient(135deg, rgba(var(--primary-rgb), 0.32), rgba(var(--secondary-rgb), 0.22)){% endif %};
+                linear-gradient(
+                    180deg,
+                    rgba(10, 15, 30, 0.2) 0%,
+                    rgba(16, 23, 41, 0.95) 58%
+                ),
+                url('{{ server.banner or url_for("static", filename="banner.gif") }}') center/cover no-repeat;
             box-shadow: var(--surface-shadow);
             min-height: 360px;
         }
