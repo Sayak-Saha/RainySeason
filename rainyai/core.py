@@ -7,9 +7,10 @@ from typing import Optional
 
 import discord
 from discord import HTTPException, Interaction, app_commands
+from discord.http import Route
 from discord.ext import commands, tasks
 
-from config import BOT_TOKEN
+from config import BOT_TOKEN, DISCORD_REST_PROXY
 from functions.app import (
     build_standard_filter_definitions,
     create_app,
@@ -23,6 +24,7 @@ from functions.discord_fetcher import db, fetch_and_save_data, update_status_and
 from functions.webhook import send_webhook_message
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+Route.BASE = DISCORD_REST_PROXY
 
 intents = discord.Intents.all()
 intents.members = True
