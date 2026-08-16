@@ -397,13 +397,51 @@ async def run_bot_with_retry(client, token, bot_name):
                 await asyncio.sleep(60)
 
         except Exception as e:
+            error_text = str(e)
+            # HidencCloud / network-level Discord connection block.
+            # This happens before Discord returns an HTTP response,
+            # so discord.py raises ClientConnectorError instead of HTTPException.
+            if (
+                "Cannot connect to host discord.com:443" in error_text
+                or "Cannot connect to host gateway.discord.gg:443" in error_text
+                or "ClientConnectorError" in type(e).__name__
+            ):
+                wait_seconds = 35 * 60
+                message = (
+                    f"[Discord] Connection to Discord is currently unavailable "
+                    f"from the hosting network. "
+                    f"Waiting {wait_seconds // 60} minutes before retrying."
+                )
+                print("=" * 60)
+                print(message)
+                print("No repeated retry errors will be printed during this wait.")
+                print("=" * 60)
+                if bot_name is not None:
+                    try:
+                        await send_webhook_message(message)
+                    except Exception:
+                        pass
+                await asyncio.sleep(wait_seconds)
+                print(
+                    f"[Discord] {bot_name} cooldown finished. "
+                    f"Attempting to reconnect..."
+                )
+                continue
+            # Everything else remains a normal crash/retry.
             tb = traceback.format_exc()
-            print(f"Bot {bot_name} crashed with a non-HTTP error: {e}. Restarting in 60s...")
+            print(
+                f"Bot {bot_name} crashed with a non-HTTP error: "
+                f"{e}. Restarting in 60s..."
+            )
             print(tb)
             if bot_name is not None:
-                await send_webhook_message(
-                    f"Bot {bot_name} crashed with a non-HTTP error: {e}. Restarting in 60s.\n```{tb[-1500:]}```"
-                )
+                try:
+                    await send_webhook_message(
+                        f"Bot {bot_name} crashed with a non-HTTP error: "
+                        f"{e}. Restarting in 60s.\n```{tb[-1500:]}```"
+                    )
+                except Exception:
+                    pass
             await asyncio.sleep(60)
 
 
