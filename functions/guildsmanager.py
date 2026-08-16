@@ -6,7 +6,7 @@ import os
 import time
 import datetime
 import sys
-from config import MONGO_URI
+from config import MONGO_URI, DISCORD_REST_PROXY
 # import re # <-- No longer needed, $regex handles this
 
 # --- Configuration & Setup ---
@@ -45,7 +45,7 @@ except ConnectionFailure as e:
     sys.exit(1) # Exit the script if we can't connect
 
 
-INVITE_BASE_URL = "https://discord.com/api/v10/invites/"
+INVITE_BASE_URL = f"{DISCORD_REST_PROXY}/invites/"
 
 # Setup a persistent session for requests
 session = requests.Session()
