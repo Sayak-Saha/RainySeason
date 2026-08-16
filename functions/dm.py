@@ -1,5 +1,5 @@
 import hikari
-from config import BOT_TOKEN
+from config import BOT_TOKEN, DISCORD_REST_PROXY
 
 #hikari_client = hikari.GatewayBot(token=BOT_TOKEN, intents=hikari.Intents.ALL)
 
@@ -125,7 +125,7 @@ DMReply = [
 ]
 
 async def send_thanks(user_id: int):
-    rest_app = hikari.RESTApp()
+    rest_app = hikari.RESTApp(url=DISCORD_REST_PROXY)
     await rest_app.start()
     async with rest_app.acquire(BOT_TOKEN, "Bot") as rest:
         try:

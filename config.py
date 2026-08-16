@@ -18,6 +18,7 @@ try:
 
     BOT_TOKEN = _doc["BOT_TOKEN"]
     DISCORD_REST_PROXY = _doc.get("DISCORD_REST_PROXY")
+    DISCORD_DEFAULT_GATEWAY = _doc.get("DISCORD_DEFAULT_GATEWAY")
     GROQ_API_KEY = _doc.get("GROQ_API_KEY")
     GROQ_PROXY_URL = _doc.get("GROQ_PROXY_URL")
     TOKEN = _doc["TOKEN"]
