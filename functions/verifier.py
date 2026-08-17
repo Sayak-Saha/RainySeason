@@ -44,7 +44,7 @@ async def check_and_assign_role(member: discord.Member, GUILD_ID=GUILD_ID, ROLE_
         if role and role not in member.roles:
             try:
                 await member.add_roles(role)
-                await send_thanks(member.id)
+                #await send_thanks(member.id)
                 print(f"✅ Added role to {member} for matching Primary Guild ID.")
                 await send_webhook_message(f"✅ Added role to {member} for matching Primary Guild ID.")
                 return f"✅ Added role to {member} for matching Primary Guild ID."
