@@ -1,4 +1,4 @@
-﻿"""
+"""
 rainyai/proxy_manager.py
 Centralized Discord route manager for RainyAI.
 
@@ -94,6 +94,17 @@ class DiscordProxyManager:
         if not proxy:
             return {}
         return {"http": proxy, "https": proxy}
+
+    def get_fallback_proxy(self) -> Optional[str]:
+        """
+        Return an available proxy (not in cooldown), even if the manager is
+        currently in DIRECT mode. Useful for ad-hoc retries (e.g. rate-limited
+        invite lookups) without switching the global bot route.
+        """
+        for idx, proxy in enumerate(self._proxies):
+            if not self._health[idx].in_cooldown():
+                return proxy
+        return self._proxies[0] if self._proxies else None
 
     def is_gateway_connectivity_error(self, exc: BaseException) -> bool:
         """

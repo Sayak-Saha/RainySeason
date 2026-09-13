@@ -138,6 +138,18 @@ def fetch_invite_data(invite_code: str):
             session.proxies = {}
         response = session.get(url)
 
+        if response.status_code == 429:
+            # If rate-limited (e.g. on direct hosting IP), retry through an available proxy
+            fallback_proxy = discord_proxy_manager.get_fallback_proxy() if discord_proxy_manager else None
+            if fallback_proxy and session.proxies.get("https") != fallback_proxy:
+                safe_print("Invite fetch rate limited on current route. Retrying via backup proxy...")
+                session.proxies = {"http": fallback_proxy, "https": fallback_proxy}
+                try:
+                    response = session.get(url)
+                except requests.exceptions.RequestException as e:
+                    safe_print(f"Backup proxy network error for invite {invite_code}: {e}")
+                    return (ERR_REQUEST_FAILED, None)
+
         if response.status_code == 200:
             invite_data = response.json()
             guild_data = invite_data.get('guild')
@@ -168,7 +180,8 @@ def fetch_invite_data(invite_code: str):
         elif response.status_code == 404:
             return (ERR_INVITE_INVALID, None)
         elif response.status_code == 429:
-            safe_print("--- RATE LIMITED ---")
+            retry_after = response.headers.get("Retry-After", "unknown")
+            safe_print(f"--- RATE LIMITED (Retry-After: {retry_after}s) ---")
             return (ERR_RATELIMITED, None)
         else:
             return (ERR_REQUEST_FAILED, None)
