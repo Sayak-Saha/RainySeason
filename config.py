@@ -1,3 +1,5 @@
+import os
+import json
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
 from mongo import MONGO_URI  #mongo.example.py is a template for the mongo.py file, which contains the actual MongoDB URI. Make sure to replace "YOUR_MONGODB_URI_HERE" in mongo.example.py with your actual MongoDB URI and rename it to mongo.py.
@@ -21,6 +23,20 @@ try:
     GROQ_PROXY_URL = _doc.get("GROQ_PROXY_URL")
     TOKEN = _doc["TOKEN"]
     WEBHOOK_URL = _doc["WEBHOOK_URL"]
+
+    raw_proxies = _doc.get("DISCORD_PROXIES")
+    if not raw_proxies:
+        env_proxies = os.getenv("DISCORD_PROXIES")
+        if env_proxies:
+            try:
+                raw_proxies = json.loads(env_proxies)
+            except Exception:
+                raw_proxies = [p.strip() for p in env_proxies.split(",") if p.strip()]
+    DISCORD_PROXIES = raw_proxies if isinstance(raw_proxies, list) else []
+    DISCORD_DIRECT_FAILURE_THRESHOLD = int(os.getenv("DISCORD_DIRECT_FAILURE_THRESHOLD", _doc.get("DISCORD_DIRECT_FAILURE_THRESHOLD", 3)))
+    DISCORD_PROXY_COOLDOWN_SECONDS = int(os.getenv("DISCORD_PROXY_COOLDOWN_SECONDS", _doc.get("DISCORD_PROXY_COOLDOWN_SECONDS", 300)))
+    DISCORD_DIRECT_RECOVERY_INTERVAL = int(os.getenv("DISCORD_DIRECT_RECOVERY_INTERVAL", _doc.get("DISCORD_DIRECT_RECOVERY_INTERVAL", 600)))
+    DISCORD_DIRECT_RECOVERY_THRESHOLD = int(os.getenv("DISCORD_DIRECT_RECOVERY_THRESHOLD", _doc.get("DISCORD_DIRECT_RECOVERY_THRESHOLD", 3)))
 
 except (PyMongoError, ValueError) as e:
     print(f"Failed to load secrets: {e}")

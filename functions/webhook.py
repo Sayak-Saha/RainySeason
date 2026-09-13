@@ -14,9 +14,17 @@ async def send_webhook_message(content, webhook_url=WEBHOOK_URL):
     payload = {
         "content": content
     }
+    active_proxy = None
+    try:
+        from rainyai.proxy_manager import discord_proxy_manager
+        if discord_proxy_manager is not None:
+            active_proxy = discord_proxy_manager.get_active_proxy()
+    except Exception:
+        active_proxy = None
+
     async with aiohttp.ClientSession(timeout=WEBHOOK_TIMEOUT) as session:
         try:
-            async with session.post(webhook_url, json=payload) as response:
+            async with session.post(webhook_url, json=payload, proxy=active_proxy) as response:
                 if response.status != 204: # 204 No Content is a successful webhook status
                     print(f"Failed to send webhook message: HTTP {response.status}")
         except Exception as e:

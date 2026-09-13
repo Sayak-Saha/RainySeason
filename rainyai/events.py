@@ -39,6 +39,7 @@ from rainyai.core import (
     run_dashboard_analytics_once,
     run_fetch_data_once,
     update_dashboard_analytics,
+    proxy_manager,
 )
 
 
@@ -83,6 +84,7 @@ async def on_app_command_error(interaction: Interaction, error: app_commands.App
 
 @bot.event
 async def on_ready():  # type: ignore
+    proxy_manager.record_gateway_success()
     await bot.wait_until_ready()
     print("Bot is ready!")
     guild = bot.get_guild(GUILD_ID)

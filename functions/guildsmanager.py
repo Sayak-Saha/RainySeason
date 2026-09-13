@@ -131,6 +131,11 @@ def fetch_invite_data(invite_code: str):
     url = f"{INVITE_BASE_URL}{invite_code}?with_counts=true"
     
     try:
+        try:
+            from rainyai.proxy_manager import discord_proxy_manager
+            session.proxies = discord_proxy_manager.get_requests_proxies() if discord_proxy_manager else {}
+        except Exception:
+            session.proxies = {}
         response = session.get(url)
 
         if response.status_code == 200:

@@ -10,7 +10,16 @@ from discord import HTTPException, Interaction, app_commands
 from discord.ext import commands, tasks
 
 
-from config import BOT_TOKEN
+from config import (
+    BOT_TOKEN,
+    DISCORD_PROXIES,
+    DISCORD_DIRECT_FAILURE_THRESHOLD,
+    DISCORD_PROXY_COOLDOWN_SECONDS,
+    DISCORD_DIRECT_RECOVERY_INTERVAL,
+    DISCORD_DIRECT_RECOVERY_THRESHOLD,
+)
+from rainyai.proxy_manager import DiscordProxyManager
+import rainyai.proxy_manager as _pm_module
 from functions.app import (
     build_standard_filter_definitions,
     create_app,
@@ -33,6 +42,18 @@ intents.message_content = True
 
 # cryst = commands.Bot(command_prefix="?", intents=intents)
 bot = commands.Bot(command_prefix="!", intents=intents)
+
+proxy_manager = DiscordProxyManager(
+    proxies=DISCORD_PROXIES,
+    config={
+        "failure_threshold": DISCORD_DIRECT_FAILURE_THRESHOLD,
+        "proxy_cooldown": DISCORD_PROXY_COOLDOWN_SECONDS,
+        "recovery_interval": DISCORD_DIRECT_RECOVERY_INTERVAL,
+        "recovery_threshold": DISCORD_DIRECT_RECOVERY_THRESHOLD,
+    },
+)
+proxy_manager.set_bot(bot)
+_pm_module.discord_proxy_manager = proxy_manager
 
 TAG_VERIFYING_STATUS = "<a:ChickDance:1373959268046340139> Verifying server info..."
 TAG_VERIFIED_STATUS = "<a:Cute_twerk:1377974771509104691> Server verified."
@@ -347,6 +368,8 @@ async def before_bot_health_heartbeat():
 
 async def run_bot_with_retry(client, token, bot_name):
     while True:
+        if client.is_closed():
+            client.clear()
         try:
             print(f"Starting bot {bot_name}...")
             await client.start(token)
@@ -356,6 +379,14 @@ async def run_bot_with_retry(client, token, bot_name):
             await asyncio.sleep(60)
 
         except HTTPException as e:
+            if proxy_manager.is_gateway_connectivity_error(e):
+                switched = proxy_manager.record_gateway_failure(e)
+                if switched:
+                    await asyncio.sleep(2)
+                else:
+                    await asyncio.sleep(15)
+                continue
+
             if e.status == 429 and "Cloudflare" not in str(e):
                 retry_after = e.response.headers.get("Retry-After", 900)
                 try:
@@ -372,23 +403,6 @@ async def run_bot_with_retry(client, token, bot_name):
                 await asyncio.sleep(retry_after)
                 print("Retrying bot login...")
                 await send_webhook_message("Retrying bot login...")
-
-            elif "Error 1015" in str(e) or "Cloudflare" in str(e):
-                retry_after = e.response.headers.get("Retry-After", 900)
-                try:
-                    retry_after = int(retry_after)
-                except ValueError:
-                    retry_after = 900
-                message = (
-                    f"Bot {bot_name} rate limited by Cloudflare/IP ban. "
-                    f"Waiting for {(retry_after / 60):.2f} minutes..."
-                )
-                print(message)
-                if bot_name is not None:
-                    await send_webhook_message(message)
-                await asyncio.sleep(retry_after)
-                print("Retrying bot login after Cloudflare ban...")
-                await send_webhook_message("Retrying bot login after Cloudflare ban...")
             else:
                 message = f"Bot {bot_name} failed to start due to HTTP error: {e}. Retrying in 60s..."
                 print(message)
@@ -397,35 +411,37 @@ async def run_bot_with_retry(client, token, bot_name):
                 await asyncio.sleep(60)
 
         except Exception as e:
-            error_text = str(e)
-            # HidencCloud / network-level Discord connection block.
-            # This happens before Discord returns an HTTP response,
-            # so discord.py raises ClientConnectorError instead of HTTPException.
-            if (
-                "Cannot connect to host discord.com:443" in error_text
-                or "Cannot connect to host gateway.discord.gg:443" in error_text
-                or "ClientConnectorError" in type(e).__name__
-            ):
-                wait_seconds = 35 * 60
-                message = (
-                    f"[Discord] Connection to Discord is currently unavailable "
-                    f"from the hosting network. "
-                    f"Waiting {wait_seconds // 60} minutes before retrying."
-                )
-                print("=" * 60)
-                print(message)
-                print("No repeated retry errors will be printed during this wait.")
-                print("=" * 60)
-                if bot_name is not None:
-                    try:
-                        await send_webhook_message(message)
-                    except Exception:
-                        pass
+            if proxy_manager.is_gateway_connectivity_error(e):
+                switched = proxy_manager.record_gateway_failure(e)
+                if switched:
+                    await asyncio.sleep(2)
+                    continue
+
+                if len(proxy_manager._proxies) == 0:
+                    wait_seconds = 35 * 60
+                    message = (
+                        f"[Discord] Connection to Discord is currently unavailable "
+                        f"from the hosting network. "
+                        f"Waiting {wait_seconds // 60} minutes before retrying."
+                    )
+                    print("=" * 60)
+                    print(message)
+                    print("No repeated retry errors will be printed during this wait.")
+                    print("=" * 60)
+                    if bot_name is not None:
+                        try:
+                            await send_webhook_message(message)
+                        except Exception:
+                            pass
+                    await asyncio.sleep(wait_seconds)
+                    print(
+                        f"[Discord] {bot_name} cooldown finished. "
+                        f"Attempting to reconnect..."
+                    )
+                    continue
+
+                wait_seconds = 5 if proxy_manager.get_active_proxy() is None else 60
                 await asyncio.sleep(wait_seconds)
-                print(
-                    f"[Discord] {bot_name} cooldown finished. "
-                    f"Attempting to reconnect..."
-                )
                 continue
             # Everything else remains a normal crash/retry.
             tb = traceback.format_exc()
