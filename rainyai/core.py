@@ -464,7 +464,8 @@ async def run_bot_with_retry(client, token, bot_name):
 async def run_dashboard_with_retry():
     while True:
         try:
-            await app.run_task(host="0.0.0.0", port=24606, debug=False)
+            port = int(os.environ.get("PORT", 10000))
+            await app.run_task(host="0.0.0.0", port=port, debug=False)
             print("Dashboard server stopped without an exception. Restarting in 30s...")
             await send_webhook_message("Dashboard server stopped without an exception. Restarting in 30s...")
         except Exception:
