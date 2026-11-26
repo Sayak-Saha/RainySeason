@@ -1,12 +1,34 @@
-import numpy as np
-import onnxruntime as ort
-from transformers import AutoTokenizer
+from pathlib import Path
+from threading import Lock
 
-# Load ONNX model and tokenizer once
-tokenizer = AutoTokenizer.from_pretrained("assets/tokenizer", local_files_only=True)
-session = ort.InferenceSession("assets/model.onnx", providers=["CPUExecutionProvider"])
+import numpy as np
+
+
+_model_lock = Lock()
+_tokenizer = None
+_session = None
+
+
+def _load_model():
+    """Load the tokenizer and ONNX runtime the first time embeddings are requested."""
+    global _tokenizer, _session
+    if _tokenizer is None or _session is None:
+        with _model_lock:
+            if _tokenizer is None or _session is None:
+                import onnxruntime as ort
+                from transformers import AutoTokenizer
+
+                assets = Path(__file__).resolve().parent.parent / "assets"
+                _tokenizer = AutoTokenizer.from_pretrained(
+                    assets / "tokenizer", local_files_only=True
+                )
+                _session = ort.InferenceSession(
+                    str(assets / "model.onnx"), providers=["CPUExecutionProvider"]
+                )
+    return _tokenizer, _session
 
 def embed(text: str) -> np.ndarray:
+    tokenizer, session = _load_model()
     # Truncate aggressively for RAM
     inputs = tokenizer(
         text,

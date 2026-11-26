@@ -107,10 +107,6 @@ async def on_ready():  # type: ignore
         initialize_lucky_member_feature(bot)
         print("Lucky Member feature initialized.")
 
-        if not getattr(bot, "_rainyai_initial_dashboard_seeded", False):
-            await run_dashboard_analytics_once()
-            bot._rainyai_initial_dashboard_seeded = True
-
         if not getattr(bot, "_rainyai_initial_fetch_started", False):
             bot._rainyai_initial_fetch_started = True
             bot._rainyai_initial_fetch_task = asyncio.create_task(_run_initial_fetch_pipeline())

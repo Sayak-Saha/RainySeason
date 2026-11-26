@@ -310,6 +310,15 @@ async def update_dashboard_analytics():
             traceback.print_exc()
 
 
+@update_dashboard_analytics.before_loop
+async def before_update_dashboard_analytics():
+    await bot.wait_until_ready()
+    initial_fetch_task = getattr(bot, "_rainyai_initial_fetch_task", None)
+    if initial_fetch_task is not None:
+        await initial_fetch_task
+    await asyncio.sleep(15 * 60)
+
+
 async def run_dashboard_analytics_once():
     await update_dashboard_analytics.coro()
 
