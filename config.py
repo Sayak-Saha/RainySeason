@@ -1,8 +1,13 @@
 import os
 import json
+from dotenv import load_dotenv
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
-from mongo import MONGO_URI  #mongo.example.py is a template for the mongo.py file, which contains the actual MongoDB URI. Make sure to replace "YOUR_MONGODB_URI_HERE" in mongo.example.py with your actual MongoDB URI and rename it to mongo.py.
+
+load_dotenv()
+MONGO_URI = os.getenv("MONGO_URI")
+if not MONGO_URI:
+    raise ValueError("MONGO_URI is not configured. Add it to .env or the environment.")
 
 _client = None
 try:

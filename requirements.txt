@@ -13,6 +13,7 @@ vaderSentiment==3.3.2
 hikari==2.3.5
 beautifulsoup4==4.12.2
 pymongo==4.15.3
+python-dotenv
 motor==3.7.1
 ddgs==9.6.1
 trafilatura==2.0.0
@@ -20,4 +21,3 @@ faiss-cpu
 flask
 lxml
 rcssmin
-mongo
