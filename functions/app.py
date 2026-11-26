@@ -587,6 +587,10 @@ def create_app():
         return {"name": "Server", "icon": "default.png", "total_users": 0, "active_users": 0, "updated_at": "N/A"}
 
     # --- Routes are UNCHANGED, they just use the new load_data ---
+    @app.route('/health')
+    async def health():
+        return jsonify({"status": "ok"}), 200
+
     @app.route('/robots.txt')
     async def robots_txt():
         body = "User-agent: *\nAllow: /\nSitemap: https://rainyseason.vercel.app/sitemap.xml\n"
