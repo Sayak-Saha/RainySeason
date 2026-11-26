@@ -501,26 +501,17 @@ def create_app():
         return base_data
 
     def is_allowed_dashboard_request(referer):
-        allowed_origins = [
-            'https://rainyseason.vercel.app/',
-            'https://rainyseason.vercel.app/dashboard',
-            'https://rainyseason.vercel.app/dashboard-original',
-        ]
-        if referer and (
-            referer in allowed_origins or
-            referer.startswith('https://rainyseason.vercel.app/users/') or
-            referer.startswith('https://rainyseason.vercel.app/dashboard?') or
-            referer.startswith('https://rainyseason.vercel.app/dashboard-original?')
-        ):
-            return True
-
         if not referer:
             return False
 
         parsed = urlparse(referer)
-        if parsed.netloc in {'127.0.0.1:24594', 'localhost:24594'}:
-            return parsed.path in {'/', '/dashboard', '/dashboard-original'} or parsed.path.startswith('/users/')
-        return False
+        allowed_origins = {
+            ('https', 'rainyseason.vercel.app'),
+            ('https', 'rainyseason.onrender.com'),
+            ('http', '127.0.0.1:24594'),
+            ('http', 'localhost:24594'),
+        }
+        return (parsed.scheme, parsed.netloc) in allowed_origins
     
     # --- REFACTORED load_data TO USE MONGODB ---
     async def load_data(*requested):
