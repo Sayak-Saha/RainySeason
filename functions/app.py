@@ -3,7 +3,7 @@ from collections import Counter, defaultdict
 from datetime import datetime, timezone, timedelta
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from functions.clean_html import clean_html
-from functions.mongo import get_async_mongo_client
+from functions.db_client import get_async_mongo_client
 import os                   # <-- ADDED
 import re                   # <-- ADDED
 from urllib.parse import urlparse

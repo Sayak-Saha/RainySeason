@@ -18,7 +18,7 @@ from functions.web_search import build_search_query, search_web_context, should_
 import time
 import requests
 from datetime import datetime
-from functions.mongo import get_sync_mongo_client
+from functions.db_client import get_sync_mongo_client
 
 mongo_client = get_sync_mongo_client()
 mongo_db = mongo_client["rainy_season_db"]

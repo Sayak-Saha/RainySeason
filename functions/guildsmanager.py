@@ -7,7 +7,7 @@ import time
 import datetime
 import sys
 from config import MONGO_URI
-from functions.mongo import get_sync_mongo_client
+from functions.db_client import get_sync_mongo_client
 # import re # <-- No longer needed, $regex handles this
 
 # --- Configuration & Setup ---

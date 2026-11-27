@@ -6,7 +6,7 @@ from config import * # Your config.py
 import os
 import asyncio
 from discord.errors import HTTPException
-from functions.mongo import get_async_mongo_client
+from functions.db_client import get_async_mongo_client
 from functions.webhook import send_webhook_message
 from pymongo import UpdateOne
 

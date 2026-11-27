@@ -6,7 +6,7 @@ import random
 import asyncio
 from datetime import datetime, timedelta, timezone
 from config import MONGO_URI
-from functions.mongo import get_sync_mongo_client
+from functions.db_client import get_sync_mongo_client
 from functions.webhook import send_webhook_message
 # --- Global Variables & Constants ---
 mongo_client = get_sync_mongo_client()
