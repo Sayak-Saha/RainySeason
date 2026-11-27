@@ -18,9 +18,9 @@ from functions.web_search import build_search_query, search_web_context, should_
 import time
 import requests
 from datetime import datetime
-from pymongo import MongoClient
+from functions.mongo import get_sync_mongo_client
 
-mongo_client = MongoClient(MONGO_URI)
+mongo_client = get_sync_mongo_client()
 mongo_db = mongo_client["rainy_season_db"]
 lockout_status_collection = mongo_db["lockout_status"]
 model_feedback_collection = mongo_db["model_feedback"]

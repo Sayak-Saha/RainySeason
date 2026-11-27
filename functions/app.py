@@ -1,10 +1,9 @@
 from quart import Quart, render_template, jsonify, request, abort, Response, redirect
-import pandas as pd
-from collections import Counter
+from collections import Counter, defaultdict
 from datetime import datetime, timezone, timedelta
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from functions.clean_html import clean_html
-import motor.motor_asyncio  # <-- ADDED
+from functions.mongo import get_async_mongo_client
 import os                   # <-- ADDED
 import re                   # <-- ADDED
 from urllib.parse import urlparse
@@ -16,15 +15,17 @@ if not MONGO_DB_URL:
     print("CRITICAL: MONGO_DB_URL environment variable not set.")
     exit()
     
-mongo_client = motor.motor_asyncio.AsyncIOMotorClient(MONGO_DB_URL)
+mongo_client = get_async_mongo_client()
 db = mongo_client["rainy_season_db"]  # Your database name
 print("Dashboard app connected to MongoDB.")
 # --- END MONGODB SETUP ---
 
 FILTER_CACHE_TTL_SECONDS = 45
+FILTER_CACHE_MAX_ENTRIES = 16
 dashboard_filter_cache = {}
 DEFAULT_FILTER_WINDOW_DAYS = 30
 PRECOMPUTED_FILTER_INTERVALS = ("daily", "weekly", "monthly", "lifetime")
+_sentiment_analyzer = SentimentIntensityAnalyzer()
 
 # --- Helper functions are UNCHANGED ---
 def format_timestamp_relative(iso_string):
@@ -58,35 +59,31 @@ def format_timestamp_relative(iso_string):
             pass
     return 'N/A'
         
-# --- process_data is UNCHANGED ---
-# It already accepts lists/dicts, so it doesn't care about the database.
-def process_data(chat_logs, server_info, boosters, emojis_json, members_list):
-    # ... (all your existing pandas/processing logic is 100% fine) ...
-    chat_df = pd.DataFrame(chat_logs)
-    # (This function is exactly the same as yours)
-    if not chat_df.empty:
-        chat_df['timestamp'] = pd.to_datetime(chat_df['timestamp'], errors='coerce', utc=True)
-        chat_df['day'] = chat_df['timestamp'].dt.dayofweek
-        chat_df['hour'] = chat_df['timestamp'].dt.hour
+def _parse_utc_timestamp(raw_timestamp):
+    """Parse an ISO timestamp into a UTC-aware datetime, or return None."""
+    if not raw_timestamp:
+        return None
+    if isinstance(raw_timestamp, datetime):
+        dt_obj = raw_timestamp
     else:
-        chat_df = pd.DataFrame(columns=['timestamp', 'day', 'hour', 'date', 'channel', 'user_id', 'author', 'avatar', 'content', 'emojis'])
-        chat_df['timestamp'] = pd.Series(dtype='datetime64[ns, UTC]')
-        chat_df['day'] = pd.Series(dtype='int64')
-        chat_df['hour'] = pd.Series(dtype='int64')
-        chat_df['date'] = pd.Series(dtype='object')
-        chat_df['user_id'] = pd.Series(dtype='object')
-        chat_df['author'] = pd.Series(dtype='object')
-        chat_df['avatar'] = pd.Series(dtype='object')
-        chat_df['content'] = pd.Series(dtype='object')
-        chat_df['emojis'] = pd.Series(dtype='object')
+        try:
+            dt_obj = datetime.fromisoformat(str(raw_timestamp).strip().replace("Z", "+00:00"))
+        except (ValueError, TypeError):
+            return None
+    if dt_obj.tzinfo is None:
+        return dt_obj.replace(tzinfo=timezone.utc)
+    return dt_obj.astimezone(timezone.utc)
 
-    total_messages = len(chat_df)
+
+def process_data(chat_logs, server_info, boosters, emojis_json, members_list):
+    """Aggregate chat, member, emoji, and sentiment stats without pandas."""
+    total_messages = len(chat_logs)
     total_users = server_info.get('total_users', 0)
     active_users = server_info.get('active_users', 0)
     rain_keepers = server_info.get('rain_keeper_count', 0)
     updated_at_iso = server_info.get('updated_at')
-    updated_at_text = format_timestamp_relative(updated_at_iso) # Use your own filter!
-    
+    updated_at_text = format_timestamp_relative(updated_at_iso)
+
     member_profile_map = {
         str(m.get('id')): {
             'display_name': m.get('display_name', m.get('name', 'Unknown User')),
@@ -96,46 +93,69 @@ def process_data(chat_logs, server_info, boosters, emojis_json, members_list):
         for m in members_list
     }
 
-    if not chat_df.empty:
-        chat_df['date'] = chat_df['timestamp'].dt.date
-        activity_over_time = chat_df.groupby('date').size().reset_index(name='messages')
-        channel_activity = chat_df['channel'].value_counts().reset_index()
-        channel_activity.columns = ['channel', 'count']
-        user_counts = chat_df.groupby(['user_id']).size().reset_index(name='messages')
-        top_users_df = user_counts.sort_values(by='messages', ascending=False).head(6)
-        top_users = []
-        for row in top_users_df.to_dict('records'):
-            user_id = str(row.get('user_id'))
-            profile = member_profile_map.get(user_id, {})
-            top_users.append({
-                'user_id': user_id,
-                'name': profile.get('display_name') or profile.get('name') or 'Unknown User',
-                'avatar': profile.get('avatar', 'default.png'),
-                'messages': int(row.get('messages', 0))
-            })
-        if 'emojis' in chat_df.columns and not chat_df['emojis'].empty:
-            all_emojis_flat = [emoji for emoji_list in chat_df['emojis'].dropna() for emoji in emoji_list]
-            emoji_usage = Counter(all_emojis_flat)
-        else:
-            emoji_usage = Counter()
-    else:
-        activity_over_time = pd.DataFrame(columns=['date', 'messages'])
-        channel_activity = pd.DataFrame(columns=['channel', 'count'])
-        top_users = []
-        emoji_usage = Counter()
-    
-    sentiment_data = []
-    if not chat_df.empty and 'content' in chat_df.columns:
-        analyzer = SentimentIntensityAnalyzer()
-        def calculate_vader_sentiment(text):
-            if not isinstance(text, str) or not text.strip(): return 0.0
-            return analyzer.polarity_scores(text)['compound']
-        content_df = chat_df.dropna(subset=['content']).copy()
-        if not content_df.empty:
-            content_df['sentiment_score'] = content_df['content'].apply(calculate_vader_sentiment)
-            daily_sentiment = content_df.groupby(content_df['timestamp'].dt.date)['sentiment_score'].mean().reset_index()
-            daily_sentiment.columns = ['date', 'sentiment']
-            sentiment_data = daily_sentiment.to_dict('records')
+    daily_counts = Counter()
+    hourly_counts = Counter()
+    channel_counts = Counter()
+    user_counts = Counter()
+    emoji_usage = Counter()
+    heatmap_matrix = [[0] * 24 for _ in range(7)]
+    daily_sentiment_sum = defaultdict(float)
+    daily_sentiment_count = defaultdict(int)
+    user_activity_dates = defaultdict(set)
+    latest_data_date = None
+
+    for entry in chat_logs:
+        dt_obj = _parse_utc_timestamp(entry.get('timestamp'))
+        channel = entry.get('channel')
+        if channel is not None:
+            channel_counts[channel] += 1
+
+        user_id = entry.get('user_id')
+        if user_id is not None:
+            user_counts[user_id] += 1
+
+        emojis_val = entry.get('emojis')
+        if isinstance(emojis_val, (list, tuple)):
+            emoji_usage.update(emojis_val)
+
+        if dt_obj is None:
+            continue
+
+        entry_date = dt_obj.date()
+        daily_counts[entry_date] += 1
+        hourly_counts[dt_obj.hour] += 1
+        heatmap_matrix[dt_obj.weekday()][dt_obj.hour] += 1
+
+        if latest_data_date is None or entry_date > latest_data_date:
+            latest_data_date = entry_date
+
+        if user_id is not None:
+            user_activity_dates[user_id].add(entry_date)
+
+        if 'content' in entry and entry['content'] is not None:
+            text = entry['content']
+            score = _sentiment_analyzer.polarity_scores(text)['compound'] if isinstance(text, str) and text.strip() else 0.0
+            daily_sentiment_sum[entry_date] += score
+            daily_sentiment_count[entry_date] += 1
+
+    activity_list = [{'date': d, 'messages': daily_counts[d]} for d in sorted(daily_counts)]
+    channel_activity_list = [{'channel': ch, 'count': cnt} for ch, cnt in channel_counts.most_common()]
+
+    top_users = []
+    for raw_user_id, msg_count in user_counts.most_common(6):
+        user_id = str(raw_user_id)
+        profile = member_profile_map.get(user_id, {})
+        top_users.append({
+            'user_id': user_id,
+            'name': profile.get('display_name') or profile.get('name') or 'Unknown User',
+            'avatar': profile.get('avatar', 'default.png'),
+            'messages': int(msg_count)
+        })
+
+    sentiment_data = [
+        {'date': d, 'sentiment': daily_sentiment_sum[d] / daily_sentiment_count[d]}
+        for d in sorted(daily_sentiment_sum)
+    ]
 
     custom_emoji_map = {}
     for emoji in emojis_json:
@@ -150,21 +170,6 @@ def process_data(chat_logs, server_info, boosters, emojis_json, members_list):
         else:
             top_emojis.append({'name': emoji_name, 'count': count, 'is_unicode': True})
 
-    activity_list = list(activity_over_time.to_dict('records'))
-    channel_activity_list = list(channel_activity.to_dict('records'))
-    top_emojis_list = list(top_emojis)
-    heatmap_matrix = [[0] * 24 for _ in range(7)]
-    if not chat_df.empty:
-        grouped_by_day_hour = chat_df.groupby(['day', 'hour']).size()
-        for idx, count in grouped_by_day_hour.items():
-            if isinstance(idx, tuple) and len(idx) == 2:
-                day, hour = idx
-                try:
-                    day_int = int(day); hour_int = int(hour)
-                    if 0 <= day_int < 7 and 0 <= hour_int < 24:
-                        heatmap_matrix[day_int][hour_int] = count
-                except (TypeError, ValueError): pass
-    
     normalized_boosters = []
     for booster in boosters:
         profile = member_profile_map.get(str(booster.get('id')), {})
@@ -176,30 +181,41 @@ def process_data(chat_logs, server_info, boosters, emojis_json, members_list):
         })
 
     active_streaks_data = []
-    if not chat_df.empty:
-        streak_df = chat_df[['user_id', 'timestamp']].dropna().copy()
-        streak_df['date'] = streak_df['timestamp'].dt.date
-        latest_data_date = streak_df['date'].max() if not streak_df.empty else None
-        user_activity_dates = streak_df.groupby('user_id')['date'].apply(lambda x: sorted(list(x.unique())))
-        for user_id, dates in user_activity_dates.items():
-            longest_streak = 0; current_streak = 0
-            if not dates: continue
-            temp_longest = 0
-            for i in range(len(dates)):
-                if i == 0 or (dates[i] - dates[i-1]).days != 1: temp_longest = 1
-                else: temp_longest += 1
-                longest_streak = max(longest_streak, temp_longest)
-            if latest_data_date and dates[-1] == latest_data_date:
-                temp_current = 1
-                for i in range(len(dates) - 2, -1, -1):
-                    if (dates[i+1] - dates[i]).days == 1: temp_current += 1
-                    else: break
-                current_streak = temp_current
-            else: current_streak = 0 
-            user_info = member_profile_map.get(str(user_id), {'display_name': 'Unknown User', 'avatar': 'default.png'})
-            active_streaks_data.append({'user_id': user_id, 'display_name': user_info['display_name'], 'avatar': user_info['avatar'], 'longest_streak': longest_streak, 'current_streak': current_streak})
+    for user_id, date_set in user_activity_dates.items():
+        dates = sorted(date_set)
+        if not dates:
+            continue
+        longest_streak = 0
+        temp_longest = 0
+        for i in range(len(dates)):
+            if i == 0 or (dates[i] - dates[i - 1]).days != 1:
+                temp_longest = 1
+            else:
+                temp_longest += 1
+            if temp_longest > longest_streak:
+                longest_streak = temp_longest
+
+        if latest_data_date and dates[-1] == latest_data_date:
+            temp_current = 1
+            for i in range(len(dates) - 2, -1, -1):
+                if (dates[i + 1] - dates[i]).days == 1:
+                    temp_current += 1
+                else:
+                    break
+            current_streak = temp_current
+        else:
+            current_streak = 0
+
+        user_info = member_profile_map.get(str(user_id), {'display_name': 'Unknown User', 'avatar': 'default.png'})
+        active_streaks_data.append({
+            'user_id': user_id,
+            'display_name': user_info['display_name'],
+            'avatar': user_info['avatar'],
+            'longest_streak': longest_streak,
+            'current_streak': current_streak,
+        })
     active_streaks_data.sort(key=lambda x: (x['longest_streak'], x['current_streak']), reverse=True)
-    active_streaks_data = active_streaks_data[:10] 
+    active_streaks_data = active_streaks_data[:10]
 
     activity_insights = {
         'messages_today': 0,
@@ -214,37 +230,37 @@ def process_data(chat_logs, server_info, boosters, emojis_json, members_list):
         'channel_count': 0,
     }
 
-    if not chat_df.empty:
+    if daily_counts:
         current_utc_date = datetime.now(timezone.utc).date()
         previous_data_date = current_utc_date - timedelta(days=1)
         seven_day_start = current_utc_date - timedelta(days=6)
-        daily_counts = chat_df.groupby('date').size()
-        hourly_counts = chat_df.groupby('hour').size()
 
-        busiest_day = daily_counts.idxmax()
-        busiest_day_messages = int(daily_counts.max())
-        most_active_hour = int(hourly_counts.idxmax())
-        most_active_hour_messages = int(hourly_counts.max())
+        busiest_day = max(daily_counts, key=daily_counts.get)
+        busiest_day_messages = int(daily_counts[busiest_day])
+        most_active_hour = int(max(hourly_counts, key=hourly_counts.get))
+        most_active_hour_messages = int(hourly_counts[most_active_hour])
+        total_valid_days = len(daily_counts)
+        total_valid_messages = sum(daily_counts.values())
 
         activity_insights = {
             'messages_today': int(daily_counts.get(current_utc_date, 0)),
             'messages_yesterday': int(daily_counts.get(previous_data_date, 0)),
-            'messages_last_7_days': int(daily_counts[daily_counts.index >= seven_day_start].sum()),
-            'daily_average': round(float(daily_counts.mean()), 1),
-            'active_days': int(daily_counts.shape[0]),
+            'messages_last_7_days': int(sum(cnt for d, cnt in daily_counts.items() if d >= seven_day_start)),
+            'daily_average': round(float(total_valid_messages) / total_valid_days, 1),
+            'active_days': int(total_valid_days),
             'busiest_day_label': busiest_day.strftime('%b %d, %Y'),
             'busiest_day_messages': busiest_day_messages,
             'most_active_hour_label': f"{most_active_hour:02d}:00 UTC",
             'most_active_hour_messages': most_active_hour_messages,
-            'channel_count': int(chat_df['channel'].nunique()),
+            'channel_count': int(len(channel_counts)),
         }
-    
+
     return {
         'server': server_info, 'boosters': normalized_boosters, 'messages': total_messages,
         'total_users': total_users, 'active_users': active_users,
         'updated_at_text': updated_at_text, 'rain_keepers': rain_keepers,
         'top_users_data': top_users, 'activity': activity_list,
-        'channel_activity': channel_activity_list, 'top_emojis': top_emojis_list,
+        'channel_activity': channel_activity_list, 'top_emojis': top_emojis,
         'heatmap': heatmap_matrix, 'sentiment_data': sentiment_data,
         'active_streaks_data': active_streaks_data,
         'activity_insights': activity_insights
@@ -456,6 +472,15 @@ def create_app():
             members_list
         )
         filtered_stats = finalize_filtered_dashboard_stats(filtered_stats, filters)
+        expired_keys = [
+            k for k, v in dashboard_filter_cache.items()
+            if (now_ts - v['timestamp']) >= FILTER_CACHE_TTL_SECONDS
+        ]
+        for k in expired_keys:
+            dashboard_filter_cache.pop(k, None)
+        while len(dashboard_filter_cache) >= FILTER_CACHE_MAX_ENTRIES:
+            oldest_key = min(dashboard_filter_cache, key=lambda k: dashboard_filter_cache[k]['timestamp'])
+            dashboard_filter_cache.pop(oldest_key, None)
         dashboard_filter_cache[cache_key] = {
             'timestamp': now_ts,
             'data': deepcopy(filtered_stats)
@@ -709,27 +734,37 @@ def create_app():
         else:
             user_data['boosted_since_formatted'] = 'N/A'
         
-        # This DataFrame is now tiny (only this user's messages)
-        chat_df = pd.DataFrame(user_chat_logs) 
+        day_counts = Counter()
+        channel_counts = Counter()
+        valid_count = 0
+        min_dt = None
+        max_dt = None
 
-        if not chat_df.empty:
-            chat_df['timestamp'] = pd.to_datetime(chat_df['timestamp'], errors='coerce', utc=True) 
-            chat_df.dropna(subset=['timestamp'], inplace=True)
-            
-            if not chat_df.empty: # Re-check after potential dropna
-                chat_df['day'] = chat_df['timestamp'].dt.dayofweek
-                activity_by_day = chat_df.groupby('day').size().reindex(range(7), fill_value=0)
-                user_activity_list = [{'day': day, 'messages': messages} for day, messages in activity_by_day.items()]
-                last_dt = chat_df['timestamp'].max() if not chat_df.empty else None
-                user_data.update({
-                    'total_messages': len(chat_df),
-                    'first_message_date': chat_df['timestamp'].min().strftime('%Y-%m-%d %H:%M:%S UTC'), 
-                    'last_message_iso': last_dt.isoformat() if last_dt is not None else None, 
-                    'channels_active_in': chat_df['channel'].nunique(),
-                    'top_channels': chat_df['channel'].value_counts().head(5).to_dict(),
-                    'activity': user_activity_list,
-                    'last_message_formatted': format_timestamp_relative(last_dt.isoformat()) if last_dt else 'N/A'
-                })
+        for entry in user_chat_logs:
+            dt_obj = _parse_utc_timestamp(entry.get('timestamp'))
+            if dt_obj is None:
+                continue
+            valid_count += 1
+            day_counts[dt_obj.weekday()] += 1
+            channel = entry.get('channel')
+            if channel is not None:
+                channel_counts[channel] += 1
+            if min_dt is None or dt_obj < min_dt:
+                min_dt = dt_obj
+            if max_dt is None or dt_obj > max_dt:
+                max_dt = dt_obj
+
+        if valid_count > 0 and min_dt is not None and max_dt is not None:
+            user_activity_list = [{'day': day, 'messages': day_counts.get(day, 0)} for day in range(7)]
+            user_data.update({
+                'total_messages': valid_count,
+                'first_message_date': min_dt.strftime('%Y-%m-%d %H:%M:%S UTC'),
+                'last_message_iso': max_dt.isoformat(),
+                'channels_active_in': len(channel_counts),
+                'top_channels': dict(channel_counts.most_common(5)),
+                'activity': user_activity_list,
+                'last_message_formatted': format_timestamp_relative(max_dt.isoformat()),
+            })
 
         html = await render_template('user_profile.html', user=user_data, server=server_info)
         return Response(await clean_html(html), content_type='text/html')

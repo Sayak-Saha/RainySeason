@@ -1,7 +1,9 @@
 import asyncio
+import gc
 import os
 import re
 import traceback
+from copy import deepcopy
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -39,9 +41,16 @@ intents.members = True
 intents.presences = True
 intents.messages = True
 intents.message_content = True
+intents.voice_states = False
+intents.typing = False
+intents.invites = False
+intents.guild_scheduled_events = False
+intents.webhooks = False
+intents.integrations = False
+intents.auto_moderation_execution = False
 
 # cryst = commands.Bot(command_prefix="?", intents=intents)
-bot = commands.Bot(command_prefix="!", intents=intents)
+bot = commands.Bot(command_prefix="!", intents=intents, max_messages=100)
 
 proxy_manager = DiscordProxyManager(
     proxies=DISCORD_PROXIES,
@@ -231,23 +240,31 @@ async def update_dashboard_analytics():
 
     async with dashboard_analytics_lock:
         print("BACKGROUND TASK: Starting dashboard analytics processing...")
+        chat_logs = []
+        boosters = []
+        emojis_json = []
+        members_list = []
         try:
-            chat_logs = await db["chat_logs"].find({}).to_list(length=None)
-            server_info_data = await db["server_info"].find_one({"_id": "server_config"})
-            boosters = await db["boosters"].find({}).to_list(length=None)
-            emojis_json = await db["emojis"].find({}).to_list(length=None)
-            members_list = await db["members"].find({}).to_list(length=None)
+            chat_projection = {
+                "timestamp": 1,
+                "channel": 1,
+                "user_id": 1,
+                "content": 1,
+                "emojis": 1,
+                "_id": 0,
+            }
+            booster_projection = {"id": 1, "name": 1, "avatar": 1, "boosted_since": 1, "_id": 0}
+            emoji_projection = {"name": 1, "url": 1, "id": 1, "animated": 1, "_id": 0}
+            member_projection = {"id": 1, "name": 1, "display_name": 1, "avatar": 1, "_id": 0}
 
-            for doc in chat_logs:
-                doc.pop("_id", None)
+            chat_logs = await db["chat_logs"].find({}, chat_projection).to_list(length=None)
+            server_info_data = await db["server_info"].find_one({"_id": "server_config"})
+            boosters = await db["boosters"].find({}, booster_projection).to_list(length=None)
+            emojis_json = await db["emojis"].find({}, emoji_projection).to_list(length=None)
+            members_list = await db["members"].find({}, member_projection).to_list(length=None)
+
             if server_info_data:
                 server_info_data.pop("_id", None)
-            for doc in boosters:
-                doc.pop("_id", None)
-            for doc in emojis_json:
-                doc.pop("_id", None)
-            for doc in members_list:
-                doc.pop("_id", None)
 
             processed_stats = await asyncio.to_thread(
                 process_data,
@@ -263,26 +280,28 @@ async def update_dashboard_analytics():
             standard_filters = build_standard_filter_definitions()
             precomputed_filters = {}
             for key, filters in standard_filters.items():
+                if key == "lifetime":
+                    lifetime_copy = deepcopy(processed_stats)
+                    lifetime_copy["boosters"] = []
+                    precomputed_filters[key] = finalize_filtered_dashboard_stats(lifetime_copy, filters)
+                    continue
+
                 filter_start = filters["start"]
                 filter_end = filters["end"]
-
-                if key == "lifetime":
-                    filtered_logs = chat_logs
-                else:
-                    filtered_logs = []
-                    for entry in chat_logs:
-                        raw_timestamp = entry.get("timestamp")
-                        if not raw_timestamp:
-                            continue
-                        try:
-                            entry_dt = datetime.fromisoformat(str(raw_timestamp).replace("Z", "+00:00"))
-                        except ValueError:
-                            continue
-                        if entry_dt.tzinfo is None:
-                            entry_dt = entry_dt.replace(tzinfo=timezone.utc)
-                        entry_date = entry_dt.astimezone(timezone.utc).date()
-                        if filter_start <= entry_date <= filter_end:
-                            filtered_logs.append(entry)
+                filtered_logs = []
+                for entry in chat_logs:
+                    raw_timestamp = entry.get("timestamp")
+                    if not raw_timestamp:
+                        continue
+                    try:
+                        entry_dt = datetime.fromisoformat(str(raw_timestamp).replace("Z", "+00:00"))
+                    except ValueError:
+                        continue
+                    if entry_dt.tzinfo is None:
+                        entry_dt = entry_dt.replace(tzinfo=timezone.utc)
+                    entry_date = entry_dt.astimezone(timezone.utc).date()
+                    if filter_start <= entry_date <= filter_end:
+                        filtered_logs.append(entry)
 
                 precomputed_stats = await asyncio.to_thread(
                     process_data,
@@ -292,6 +311,7 @@ async def update_dashboard_analytics():
                     emojis_json,
                     members_list,
                 )
+                del filtered_logs
                 precomputed_filters[key] = finalize_filtered_dashboard_stats(precomputed_stats, filters)
 
             processed_stats["precomputed_filters"] = precomputed_filters
@@ -308,6 +328,13 @@ async def update_dashboard_analytics():
         except Exception as e:
             print(f"BACKGROUND TASK: Error in update_dashboard_analytics: {e}")
             traceback.print_exc()
+        finally:
+            chat_logs.clear()
+            boosters.clear()
+            emojis_json.clear()
+            members_list.clear()
+            del chat_logs, boosters, emojis_json, members_list
+            gc.collect()
 
 
 @update_dashboard_analytics.before_loop

@@ -1,12 +1,13 @@
 import requests
 # from tinydb import TinyDB, Query  <-- No longer needed
-from pymongo import MongoClient, TEXT
+from pymongo import TEXT
 from pymongo.errors import ConnectionFailure, DuplicateKeyError
 import os
 import time
 import datetime
 import sys
 from config import MONGO_URI
+from functions.mongo import get_sync_mongo_client
 # import re # <-- No longer needed, $regex handles this
 
 # --- Configuration & Setup ---
@@ -17,7 +18,7 @@ COLLECTION_NAME = "guilds" #Default
 #COLLECTION_NAME = "sorted_guilds" #pipeline | sorted
 try:
     # 1. Connect to the MongoDB server
-    client = MongoClient(MONGO_URI)
+    client = get_sync_mongo_client()
     
     # 2. Ping the server to check the connection
     client.admin.command('ping') 

@@ -4,9 +4,9 @@ import re
 from datetime import datetime, timedelta, timezone
 from config import * # Your config.py
 import os
-import motor.motor_asyncio
 import asyncio
 from discord.errors import HTTPException
+from functions.mongo import get_async_mongo_client
 from functions.webhook import send_webhook_message
 from pymongo import UpdateOne
 
@@ -16,7 +16,7 @@ if not MONGO_DB_URL:
     print(f"[{datetime.now()}] 🛑 CRITICAL: MONGO_DB_URL environment variable not set.")
     exit() # Cannot run without this
 
-mongo_client = motor.motor_asyncio.AsyncIOMotorClient(MONGO_DB_URL)
+mongo_client = get_async_mongo_client()
 db = mongo_client["rainy_season_db"]  # Your database name
 
 # Define your collections

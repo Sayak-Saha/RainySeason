@@ -6,10 +6,10 @@ import random
 import asyncio
 from datetime import datetime, timedelta, timezone
 from config import MONGO_URI
-from pymongo import MongoClient
+from functions.mongo import get_sync_mongo_client
 from functions.webhook import send_webhook_message
 # --- Global Variables & Constants ---
-mongo_client = MongoClient(MONGO_URI)
+mongo_client = get_sync_mongo_client()
 mongo_db = mongo_client["rainy_season_db"]
 lucky_members_collection = mongo_db["lucky_members"]
 cooldowns = {}
